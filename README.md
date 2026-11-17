@@ -46,6 +46,7 @@ Each branch is a different game built on the same Supabase ideas. Same setup, ju
 | `main` | **Deflect**: planetary defense drill with real NASA/JPL asteroids and an orbital mechanics simulator |
 | `dinner-rush-market` | **Dinner Rush, market edition**: a multiplayer pizza kitchen where every cook has a wallet and ingredient prices rise with demand |
 | `trading-floor` | **Trading Floor**: a stock exchange with a real order book and matching engine, where the room is the market |
+| `trading-floor-simple` | **Trading Floor for first-timers**: the same exchange, with one-tap Buy 1 / Sell 1 as the default and the order book behind a Pro switch |
 
 ```bash
 git checkout trading-floor     # then: npx supabase db reset && npx supabase stop && npx supabase start
