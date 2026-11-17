@@ -34,6 +34,22 @@ Everything here runs on the free tier, and all of it runs on your laptop with th
 
 What it leaves out: every planet's pull except the Sun's, and the constraint that a real impactor can only push in the direction it arrives from. `npm run check:physics` compares our model to JPL's own close-approach distances for all 60 asteroids. The median error is about 6%. A handful are far off, mostly very close passes that the planets bend in ways we ignore. That's fine for a drill, and it's an honest thing to show people.
 
+## Other programs in this repo
+
+Each branch is a different game built on the same Supabase ideas. Same setup, just check out the branch first.
+
+| Branch | What it is |
+| --- | --- |
+| `main` | **Deflect**: planetary defense drill with real NASA/JPL asteroids and an orbital mechanics simulator |
+| `dinner-rush-market` | **Dinner Rush, market edition**: a multiplayer pizza kitchen where every cook has a wallet and ingredient prices rise with demand |
+| `trading-floor` | **Trading Floor**: a stock exchange with a real order book and matching engine, where the room is the market |
+
+```bash
+git checkout trading-floor     # then: npx supabase db reset && npx supabase stop && npx supabase start
+```
+
+Switching branches changes the migrations, so reset the database, and restart the stack so it picks up that branch's Edge Functions.
+
 ## Run it on your laptop
 
 You need Node 22+, git, and Docker (Docker Desktop on Mac/Windows).
