@@ -51,6 +51,52 @@ export type Database = {
                   Relationships: [
                     
                   ]
+                },"ledger": {
+                  Row: {
+                    "at": string,"cents": number,"cook_id": string,"id": number,"reason": string,"ticket_id": number | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "at"?: string,"cents": number,"cook_id": string,"id"?: never,"reason": string,"ticket_id"?: number | null
+                  }
+                  Update: {
+                    "at"?: string,"cents"?: number,"cook_id"?: string,"id"?: never,"reason"?: string,"ticket_id"?: number | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ledger_cook_id_fkey"
+      columns: ["cook_id"]
+isOneToOne: false
+      referencedRelation: "cooks"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ledger_ticket_id_fkey"
+      columns: ["ticket_id"]
+isOneToOne: false
+      referencedRelation: "tickets"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"price_ticks": {
+                  Row: {
+                    "at": string,"price_cents": number,"slug": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "at"?: string,"price_cents": number,"slug": string
+                  }
+                  Update: {
+                    "at"?: string,"price_cents"?: number,"slug"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "price_ticks_slug_fkey"
+      columns: ["slug"]
+isOneToOne: false
+      referencedRelation: "toppings"
+      referencedColumns: ["slug"]
+    }
+                  ]
                 },"queue_samples": {
                   Row: {
                     "at": string,"cooking": number,"oldest_seconds": number | null,"waiting": number
@@ -93,28 +139,28 @@ isOneToOne: true
                   ]
                 },"shift": {
                   Row: {
-                    "cook_seconds": number,"id": boolean,"open": boolean,"patience_seconds": number,"tickets_per_tick": number,"updated_at": string
+                    "allowance_cents": number,"cook_seconds": number,"demand_bump": number,"id": boolean,"open": boolean,"patience_seconds": number,"restock_rate": number,"tickets_per_tick": number,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "cook_seconds"?: number,"id"?: boolean,"open"?: boolean,"patience_seconds"?: number,"tickets_per_tick"?: number,"updated_at"?: string
+                    "allowance_cents"?: number,"cook_seconds"?: number,"demand_bump"?: number,"id"?: boolean,"open"?: boolean,"patience_seconds"?: number,"restock_rate"?: number,"tickets_per_tick"?: number,"updated_at"?: string
                   }
                   Update: {
-                    "cook_seconds"?: number,"id"?: boolean,"open"?: boolean,"patience_seconds"?: number,"tickets_per_tick"?: number,"updated_at"?: string
+                    "allowance_cents"?: number,"cook_seconds"?: number,"demand_bump"?: number,"id"?: boolean,"open"?: boolean,"patience_seconds"?: number,"restock_rate"?: number,"tickets_per_tick"?: number,"updated_at"?: string
                   }
                   Relationships: [
                     
                   ]
                 },"tickets": {
                   Row: {
-                    "attempts": number,"claimed_at": string | null,"cook_id": string | null,"done_at": string | null,"id": number,"msg_id": number | null,"placed_at": string,"size": string,"status": string,"toppings": (string)[]
+                    "attempts": number,"claimed_at": string | null,"cook_id": string | null,"done_at": string | null,"id": number,"msg_id": number | null,"pays_cents": number | null,"placed_at": string,"size": string,"status": string,"toppings": (string)[]
                   }
                   ComputedFields: never
                   Insert: {
-                    "attempts"?: number,"claimed_at"?: string | null,"cook_id"?: string | null,"done_at"?: string | null,"id"?: never,"msg_id"?: number | null,"placed_at"?: string,"size": string,"status"?: string,"toppings": (string)[]
+                    "attempts"?: number,"claimed_at"?: string | null,"cook_id"?: string | null,"done_at"?: string | null,"id"?: never,"msg_id"?: number | null,"pays_cents"?: number | null,"placed_at"?: string,"size": string,"status"?: string,"toppings": (string)[]
                   }
                   Update: {
-                    "attempts"?: number,"claimed_at"?: string | null,"cook_id"?: string | null,"done_at"?: string | null,"id"?: never,"msg_id"?: number | null,"placed_at"?: string,"size"?: string,"status"?: string,"toppings"?: (string)[]
+                    "attempts"?: number,"claimed_at"?: string | null,"cook_id"?: string | null,"done_at"?: string | null,"id"?: never,"msg_id"?: number | null,"pays_cents"?: number | null,"placed_at"?: string,"size"?: string,"status"?: string,"toppings"?: (string)[]
                   }
                   Relationships: [
                     {
@@ -153,17 +199,37 @@ isOneToOne: false
                   ]
                 },"toppings": {
                   Row: {
-                    "emoji": string,"label": string,"slug": string
+                    "base_cents": number,"emoji": string,"label": string,"price_cents": number,"slug": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "emoji": string,"label": string,"slug": string
+                    "base_cents"?: number,"emoji": string,"label": string,"price_cents"?: number,"slug": string
                   }
                   Update: {
-                    "emoji"?: string,"label"?: string,"slug"?: string
+                    "base_cents"?: number,"emoji"?: string,"label"?: string,"price_cents"?: number,"slug"?: string
                   }
                   Relationships: [
                     
+                  ]
+                },"wallets": {
+                  Row: {
+                    "cash_cents": number,"cook_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "cash_cents": number,"cook_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "cash_cents"?: number,"cook_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "wallets_cook_id_fkey"
+      columns: ["cook_id"]
+isOneToOne: true
+      referencedRelation: "cooks"
+      referencedColumns: ["id"]
+    }
                   ]
                 }
           }
@@ -171,8 +237,11 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "finish_ticket":
-{ Args: { "p_cook": string,"p_correct": boolean,"p_detail"?: Json,"p_score": number,"p_ticket": number,"p_tip_cents": number }; Returns: Json
+            "economy_stats":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"finish_ticket":
+{ Args: { "p_cook": string,"p_correct": boolean,"p_detail"?: Json,"p_plate": (string)[],"p_plate_size": string,"p_score": number,"p_ticket": number,"p_tip_cents": number }; Returns: Json
                            },
 "grab_ticket":
 { Args: Record<PropertyKey, never>; Returns: {
@@ -182,6 +251,7 @@ isOneToOne: false
 "done_at": string | null,
 "id": number,
 "msg_id": number | null,
+"pays_cents": number | null,
 "placed_at": string,
 "size": string,
 "status": string,
@@ -205,8 +275,14 @@ isOneToOne: false
 "place_orders":
 { Args: { "p_count"?: number }; Returns: number
                            },
+"plate_cost_cents":
+{ Args: { "p_size": string,"p_toppings": (string)[] }; Returns: number
+                           },
 "shout":
 { Args: { "p_text": string }; Returns: undefined
+                           },
+"stimulus":
+{ Args: { "p_cents": number }; Returns: number
                            }
           }
           Enums: {

@@ -208,3 +208,12 @@ td, th { padding: 4px 6px; border-bottom: 1px solid var(--line); }
 .trace code { display: block; color: var(--muted); overflow-wrap: anywhere; }
 .trace li.served b { color: var(--green); }
 .trace li.botched b, .trace li.walked_out b, .trace li.dropped b { color: var(--red); }
+
+/* ---------- the market ---------- */
+
+.money-line { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; font-size: 0.9rem; }
+.good-dark { color: #1f7a4f; }
+.toppings .price { font-size: 0.7rem; color: #666; font-variant-numeric: tabular-nums; }
+.toppings .pricey { font-size: 0.7rem; color: #c0392b; font-weight: 700; font-variant-numeric: tabular-nums; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; }
+code.block + code.block { margin-top: 6px; }

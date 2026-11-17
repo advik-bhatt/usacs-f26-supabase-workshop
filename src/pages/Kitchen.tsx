@@ -4,6 +4,8 @@ import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase, ensureSession, type Cook, type Shift, type Ticket, type Topping } from "../lib/supabase";
 import { Cheats } from "../components/Cheats";
 
+const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+
 type Note = { tone: "good" | "bad" | "info"; text: string };
 
 export function Kitchen() {
@@ -92,7 +94,7 @@ function Line({ me, onLeave }: { me: Cook; onLeave: () => void }) {
   const [note, setNote] = useState<Note | null>(null);
   const [shout, setShout] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [mine, setMine] = useState({ score: 0, plates: 0, tips: 0 });
+  const [mine, setMine] = useState({ score: 0, plates: 0, tips: 0, cash: 0 });
   const [online, setOnline] = useState(0);
   const [showCheats, setShowCheats] = useState(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -101,14 +103,16 @@ function Line({ me, onLeave }: { me: Cook; onLeave: () => void }) {
 
   const refreshMine = useCallback(async () => {
     // serves is readable by everyone (it's the leaderboard), tips only by you
-    const [{ data: serves }, { data: tips }] = await Promise.all([
+    const [{ data: serves }, { data: tips }, { data: wallet }] = await Promise.all([
       supabase.from("serves").select("score").eq("cook_id", me.id),
       supabase.from("tips").select("cents"),
+      supabase.from("wallets").select("cash_cents").maybeSingle(),
     ]);
     setMine({
       score: (serves ?? []).reduce((a, s) => a + s.score, 0),
       plates: serves?.length ?? 0,
       tips: (tips ?? []).reduce((a, t) => a + t.cents, 0),
+      cash: wallet?.cash_cents ?? 0,
     });
   }, [me.id]);
 
@@ -119,6 +123,11 @@ function Line({ me, onLeave }: { me: Cook; onLeave: () => void }) {
 
     const channel = supabase
       .channel("kitchen")
+      // prices move every time anyone serves, and every tick as the pantry restocks
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "toppings" }, (p) => {
+        const t = p.new as Topping;
+        setMenu((m) => m.map((x) => (x.slug === t.slug ? t : x)));
+      })
       // the host can change the shift from the terminal; we hear about it here
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "shift" }, (p) =>
         setShift(p.new as Shift),
@@ -189,13 +198,16 @@ function Line({ me, onLeave }: { me: Cook; onLeave: () => void }) {
     }
 
     if (data.status === "served") {
-      setNote({ tone: "good", text: `Perfect. +${data.score} points, $${(data.tip_cents / 100).toFixed(2)} tip, ${data.seconds}s.` });
+      setNote({
+        tone: data.profit_cents >= 0 ? "good" : "bad",
+        text: `Perfect. Paid ${money(data.revenue_cents)}, ingredients cost ${money(data.cost_cents)}: ${data.profit_cents >= 0 ? "profit" : "loss"} of ${money(Math.abs(data.profit_cents))}. +${data.score} points.`,
+      });
     } else {
       const wrong = [
         data.missing.length && `forgot ${data.missing.map((t: string) => emoji[t] ?? t).join(" ")}`,
         data.extra.length && `added ${data.extra.map((t: string) => emoji[t] ?? t).join(" ")}`,
       ].filter(Boolean);
-      setNote({ tone: "bad", text: `Sent back: ${wrong.join(", ") || "wrong size"}. No points.` });
+      setNote({ tone: "bad", text: `Sent back: ${wrong.join(", ") || "wrong size"}. No pay, and the ingredients cost you ${money(data.cost_cents)}.` });
     }
     refreshMine();
   }
@@ -208,6 +220,11 @@ function Line({ me, onLeave }: { me: Cook; onLeave: () => void }) {
     await supabase.auth.signOut();
     onLeave();
   }
+
+  // what this plate would cost right now: dough by size plus today's topping prices
+  const dough = size === "L" ? 200 : size === "M" ? 150 : 100;
+  const plateCost = dough + picked.reduce((a, slug) => a + (menu.find((t) => t.slug === slug)?.price_cents ?? 0), 0);
+  const profit = (ticket?.pays_cents ?? 0) - plateCost;
 
   const toggle = (slug: string) =>
     setPicked((p) => (p.includes(slug) ? p.filter((s) => s !== slug) : [...p, slug]));
@@ -222,7 +239,7 @@ function Line({ me, onLeave }: { me: Cook; onLeave: () => void }) {
         <div className="stats">
           <span>{mine.score} pts</span>
           <span>{mine.plates} plates</span>
-          <span title="Only you can see this. RLS.">${(mine.tips / 100).toFixed(2)} tips 🔒</span>
+          <span title="Only you can see this. RLS." className={mine.cash < 400 ? "bad" : ""}>{money(mine.cash)} cash 🔒</span>
         </div>
       </header>
 
@@ -237,6 +254,13 @@ function Line({ me, onLeave }: { me: Cook; onLeave: () => void }) {
           </div>
           <div className="timer">
             <div style={{ width: `${(left / ((shift?.cook_seconds ?? 30) * 1000)) * 100}%` }} />
+          </div>
+          <div className="money-line">
+            <span>customer pays <b>{money(ticket.pays_cents ?? 0)}</b></span>
+            <span>
+              plate costs <b>{money(plateCost)}</b> right now:{" "}
+              <b className={profit >= 0 ? "good-dark" : "bad"}>{profit >= 0 ? "+" : "-"}{money(Math.abs(profit))}</b>
+            </span>
           </div>
           <div className="order">
             <span className="size">{ticket.size}</span>
@@ -257,6 +281,7 @@ function Line({ me, onLeave }: { me: Cook; onLeave: () => void }) {
               <button key={t.slug} className={picked.includes(t.slug) ? "on" : ""} onClick={() => toggle(t.slug)}>
                 <span>{t.emoji}</span>
                 <small>{t.label}</small>
+                <small className={t.price_cents > t.base_cents ? "pricey" : "price"}>{money(t.price_cents)}</small>
               </button>
             ))}
           </div>

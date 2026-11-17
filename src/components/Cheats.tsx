@@ -26,6 +26,38 @@ export function Cheats({ me }: { me: Cook }) {
       },
     },
     {
+      id: "free-money",
+      label: "Give myself $1,000",
+      how: `supabase.from("wallets").update({ cash_cents: 100000 })`,
+      run: async () => {
+        const { error } = await supabase.from("wallets").update({ cash_cents: 100000 }).eq("cook_id", me.id);
+        return error ? { code: error.code, message: error.message } : { code: "200", message: "it worked?!" };
+      },
+    },
+    {
+      id: "peek-wallets",
+      label: "See how much everyone has",
+      how: `supabase.from("wallets").select("*")`,
+      run: async () => {
+        const { data, error } = await supabase.from("wallets").select("cook_id, cash_cents");
+        if (error) return { code: error.code, message: error.message };
+        const others = (data ?? []).filter((w) => w.cook_id !== me.id).length;
+        return {
+          code: "filtered",
+          message: `200 OK with ${data?.length ?? 0} row, ${others} of them someone else's. Just yours.`,
+        };
+      },
+    },
+    {
+      id: "crash-prices",
+      label: "Make pepperoni cost a penny",
+      how: `supabase.from("toppings").update({ price_cents: 1 })`,
+      run: async () => {
+        const { error } = await supabase.from("toppings").update({ price_cents: 1 }).eq("slug", "pepperoni");
+        return error ? { code: error.code, message: error.message } : { code: "200", message: "it worked?!" };
+      },
+    },
+    {
       id: "stop-orders",
       label: "Stop new orders coming in",
       how: `supabase.from("shift").update({ tickets_per_tick: 0 })`,
@@ -59,6 +91,8 @@ export function Cheats({ me }: { me: Cook }) {
           p_correct: true,
           p_score: 15,
           p_tip_cents: 1000,
+          p_plate_size: "S",
+          p_plate: [],
         });
         return error ? { code: error.code, message: error.message } : { code: "200", message: "it worked?!" };
       },

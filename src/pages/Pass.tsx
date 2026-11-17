@@ -1,6 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase, ensureSession, type KitchenEvent, type Shift } from "../lib/supabase";
-import { DepthChart, FlowChart, type DepthPoint, type FlowPoint } from "../components/Charts";
+import { DepthChart, FlowChart, PriceChart, priceColor, type DepthPoint, type FlowPoint, type PricePoint } from "../components/Charts";
+
+const money = (cents: number | null | undefined) => (cents == null ? "-" : `$${(cents / 100).toFixed(2)}`);
+
+type Economy = {
+  money_supply_cents: number;
+  median_cents: number | null;
+  broke: number;
+  wallets: number;
+  gini: number;
+  prices: { slug: string; emoji: string; label: string; price_cents: number; base_cents: number }[];
+  price_series: PricePoint[];
+  profit_board: { name: string; kind: string; profit_cents: number | null }[];
+};
 
 // The pass is where finished plates wait for a server. Here it's the big
 // screen: everything the kitchen is doing, live, straight out of Postgres.
@@ -30,10 +43,12 @@ const VERB: Record<string, string> = {
   walked_out: "walked out",
   late: "was too late with",
   blocked: "got blocked trying",
+  broke: "couldn't afford the ingredients for",
 };
 
 export function Pass() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [economy, setEconomy] = useState<Economy | null>(null);
   const [feed, setFeed] = useState<KitchenEvent[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [online, setOnline] = useState<{ name: string; kind: string }[]>([]);
@@ -55,6 +70,7 @@ export function Pass() {
     }
 
     async function poll() {
+      supabase.rpc("economy_stats").then(({ data }) => !stop && data && setEconomy(data as unknown as Economy));
       const { data, error } = await supabase.rpc("pass_stats");
       if (stop) return;
       if (error) setError(error.message);
@@ -81,6 +97,7 @@ export function Pass() {
         .limit(40);
       setFeed(recent ?? []);
       poll();
+      if (stop) return; // unmounted while we were loading
 
       channel = supabase
         .channel("kitchen")
@@ -156,6 +173,62 @@ export function Pass() {
         </div>
       </section>
 
+      {economy && (
+        <section className="grid3">
+          <div className="panel">
+            <h2>The pantry: prices right now</h2>
+            <table>
+              <tbody>
+                {economy.prices.map((p) => {
+                  const up = (p.price_cents / p.base_cents - 1) * 100;
+                  const slugs = economy.prices.map((x) => x.slug);
+                  return (
+                    <tr key={p.slug}>
+                      <td><span className="swatch" style={{ background: priceColor(p.slug, slugs) }} /> {p.emoji} {p.label}</td>
+                      <td>{money(p.price_cents)}</td>
+                      <td className={up > 0.5 ? "bad" : "muted"}>{up > 0.5 ? `+${up.toFixed(0)}%` : "base"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="panel">
+            <h2>Prices vs. base, last 5 minutes</h2>
+            <PriceChart
+              points={economy.price_series}
+              bases={Object.fromEntries(economy.prices.map((p) => [p.slug, p.base_cents]))}
+              now={now}
+            />
+            <p className="small muted">
+              Every topping used bumps its price {Math.round(Number(stats.shift.demand_bump ?? 0) * 100)}%. Every tick the
+              pantry restocks {Math.round(Number(stats.shift.restock_rate ?? 0) * 100)}% of the way back to base.
+            </p>
+          </div>
+          <div className="panel">
+            <h2>The economy</h2>
+            <dl className="knobs">
+              <dt>money in wallets</dt><dd>{money(economy.money_supply_cents)}</dd>
+              <dt>median wallet</dt><dd>{money(economy.median_cents)}</dd>
+              <dt>inequality (Gini)</dt><dd>{economy.gini} <span className="muted small">0 = equal, 1 = one cook has it all</span></dd>
+              <dt>nearly broke</dt><dd>{economy.broke} of {economy.wallets} cooks</dd>
+            </dl>
+            <h2>Most profitable</h2>
+            <table>
+              <tbody>
+                {economy.profit_board.map((p, i) => (
+                  <tr key={p.name + i}>
+                    <td>{p.kind === "bot" ? "🤖 " : ""}{p.name}</td>
+                    <td className={(p.profit_cents ?? 0) >= 0 ? "good" : "bad"}>{money(p.profit_cents ?? 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="small muted">Totals only. Nobody's wallet leaves the database; RLS hides them, and this view only sums them.</p>
+          </div>
+        </section>
+      )}
+
       <section className="grid3">
         <div className="panel">
           <h2>Leaderboard</h2>
@@ -185,6 +258,8 @@ export function Pass() {
                 <time>{new Date(e.at).toLocaleTimeString()}</time>{" "}
                 {e.kind === "placed" ? (
                   <>new ticket <b>#{e.ticket_id}</b></>
+                ) : e.kind === "stimulus" ? (
+                  <>💸 stimulus: every cook got <b>{money(Number((e.detail as Record<string, unknown>)?.cents))}</b></>
                 ) : e.kind === "blocked" ? (
                   <><b>{who(e)}</b> {VERB.blocked} <i>{String((e.detail as Record<string, unknown>)?.attack)}</i>{" "}
                     <span className="code">{String((e.detail as Record<string, unknown>)?.code)}</span></>
@@ -219,9 +294,13 @@ export function Pass() {
             <dt>tickets_per_tick</dt><dd>{s.tickets_per_tick} every 10s</dd>
             <dt>cook_seconds</dt><dd>{s.cook_seconds}s</dd>
             <dt>patience_seconds</dt><dd>{s.patience_seconds}s</dd>
+            <dt>demand_bump</dt><dd>+{Math.round(Number(s.demand_bump) * 100)}% per use</dd>
+            <dt>restock_rate</dt><dd>{Math.round(Number(s.restock_rate) * 100)}% back per tick</dd>
+            <dt>allowance_cents</dt><dd>{money(s.allowance_cents)} for new cooks</dd>
           </dl>
           <p className="small muted">Change them from a terminal:</p>
           <code className="small block">npx supabase db query "update shift set tickets_per_tick = 5"</code>
+          <code className="small block">npx supabase db query "select stimulus(500)"</code>
 
           <h2>On shift</h2>
           <p className="small">

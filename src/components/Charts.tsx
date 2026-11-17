@@ -68,6 +68,39 @@ export function FlowChart({ points, now }: { points: FlowPoint[]; now: number })
   );
 }
 
+export type PricePoint = { at: string; slug: string; price_cents: number };
+
+const LINE_COLORS = ["#3ecf8e", "#f5b942", "#6ab0f3", "#f26d6d", "#c792ea", "#ff9e64", "#9ece6a", "#7dcfff"];
+
+// Prices as a multiple of each topping's base price, so a 30 cent onion and a
+// 90 cent pineapple share one axis. 1.0 is "nobody's been buying it".
+export function PriceChart({ points, bases, now }: { points: PricePoint[]; bases: Record<string, number>; now: number }) {
+  const slugs = Object.keys(bases).sort();
+  const ratio = (p: PricePoint) => p.price_cents / (bases[p.slug] || 1);
+  const max = Math.max(1.5, ...points.map(ratio));
+  const y = (v: number) => H - PAD - ((v - 1) / (max - 1)) * (H - PAD * 2);
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label="Topping prices relative to base over the last five minutes">
+      <g className="grid">
+        <line x1={PAD} x2={W - PAD} y1={y(1)} y2={y(1)} />
+        <line x1={PAD} x2={W - PAD} y1={y(max)} y2={y(max)} />
+        <text x={PAD - 4} y={y(max) + 4} textAnchor="end">{max.toFixed(1)}x</text>
+        <text x={PAD - 4} y={y(1) + 4} textAnchor="end">1x</text>
+        <text x={PAD} y={H - 6}>5 min ago</text>
+        <text x={W - PAD} y={H - 6} textAnchor="end">now</text>
+      </g>
+      {slugs.map((slug, i) => {
+        const pts = points.filter((p) => p.slug === slug);
+        const d = pts.map((p, k) => `${k ? "L" : "M"}${x(p.at, now).toFixed(1)},${y(ratio(p)).toFixed(1)}`).join(" ");
+        return <path key={slug} d={d} fill="none" stroke={LINE_COLORS[i % LINE_COLORS.length]} strokeWidth={2} />;
+      })}
+    </svg>
+  );
+}
+
+export const priceColor = (slug: string, slugs: string[]) => LINE_COLORS[[...slugs].sort().indexOf(slug) % LINE_COLORS.length];
+
 function Grid({ max, y }: { max: number; y: (v: number) => number }) {
   return (
     <g className="grid">
