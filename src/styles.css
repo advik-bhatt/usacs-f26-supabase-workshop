@@ -191,3 +191,24 @@ tr.total td { font-weight: 700; border-bottom: 0; }
 .alerts li.halt { color: var(--red); }
 .alerts li.resume { color: var(--green); }
 .alerts li.blocked { color: var(--amber); }
+
+/* ---------- simple mode ---------- */
+
+.intro ol { padding-left: 20px; display: grid; gap: 12px; font-size: 1.05rem; margin: 20px 0; }
+.scoreline { font-weight: 700; font-size: 1.05rem; }
+.seg.mode button { padding: 8px; font-size: 0.9rem; }
+.pro-help { margin: 0; }
+
+.simple { display: grid; gap: 10px; }
+.simple-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 8px; }
+.simple-card.halted { background: #2a1111; }
+.simple-top { display: flex; justify-content: space-between; gap: 10px; }
+.simple-name { font-weight: 700; }
+.simple-price { font-size: 1.4rem; font-weight: 800; text-align: right; white-space: nowrap; }
+.simple-card .spark { width: 100%; }
+.simple-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.simple-actions button { display: grid; gap: 2px; padding: 10px; text-align: center; }
+.simple-actions button b { font-size: 1.05rem; }
+.simple-actions button span { font-size: 0.75rem; opacity: 0.85; }
+.simple-actions .buy { background: #12301f; border-color: var(--green); }
+.simple-actions .sell { background: #3a1414; border-color: var(--red); }

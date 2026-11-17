@@ -15,6 +15,26 @@ import {
 } from "../lib/supabase";
 import { BookView, Sparkline } from "../components/Charts";
 import { Cheats } from "../components/Cheats";
+import { Intro, SimpleBoard, type Quotes } from "../components/Simple";
+
+// Small conveniences remembered per device. Storage can be blocked (private
+// windows), so every read and write is allowed to fail.
+const remember = {
+  get: (k: string) => {
+    try {
+      return localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  set: (k: string, v: string) => {
+    try {
+      localStorage.setItem(k, v);
+    } catch {
+      /* fine, just won't be remembered */
+    }
+  },
+};
 
 type Note = { tone: "good" | "bad" | "info"; text: string };
 
@@ -101,6 +121,10 @@ function Desk({ me, onLeave }: { me: Trader; onLeave: () => void }) {
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(0);
   const [showCheats, setShowCheats] = useState(false);
+  const [intro, setIntro] = useState(() => remember.get("tf-intro-seen") !== "1");
+  const [mode, setMode] = useState<"simple" | "pro">(() => (remember.get("tf-mode") === "pro" ? "pro" : "simple"));
+  const [quotes, setQuotes] = useState<Quotes>({});
+  const [trading, setTrading] = useState<string | null>(null);
   const symbolRef = useRef(symbol);
   symbolRef.current = symbol;
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -121,6 +145,11 @@ function Desk({ me, onLeave }: { me: Trader; onLeave: () => void }) {
   const refreshBook = useCallback(async () => {
     const { data } = await supabase.rpc("order_book", { p_symbol: symbolRef.current, p_depth: 6 });
     setBook(data as unknown as Book);
+  }, []);
+
+  const refreshQuotes = useCallback(async () => {
+    const { data } = await supabase.rpc("quotes");
+    if (data) setQuotes(data as unknown as Quotes);
   }, []);
 
   const refreshSamples = useCallback(async () => {
@@ -162,14 +191,17 @@ function Desk({ me, onLeave }: { me: Trader; onLeave: () => void }) {
       });
     channelRef.current = channel;
 
+    refreshQuotes();
+    const quoteTimer = setInterval(refreshQuotes, 2000);
     const book = setInterval(refreshBook, 2000);
     const spark = setInterval(refreshSamples, 10000);
     return () => {
       clearInterval(book);
+      clearInterval(quoteTimer);
       clearInterval(spark);
       supabase.removeChannel(channel);
     };
-  }, [me, refreshMine, refreshBook, refreshSamples]);
+  }, [me, refreshMine, refreshBook, refreshSamples, refreshQuotes]);
 
   // switching stocks: load its book and start the limit price at the last trade
   useEffect(() => {
@@ -238,6 +270,38 @@ function Desk({ me, onLeave }: { me: Trader; onLeave: () => void }) {
     refreshBook();
   }
 
+  // Simple mode: one share, at whatever the market is asking right now.
+  async function quickTrade(sym: string, tradeSide: "buy" | "sell") {
+    setTrading(sym);
+    setNote(null);
+    const { data, error } = await supabase.rpc("place_order", {
+      p_symbol: sym,
+      p_side: tradeSide,
+      p_kind: "market",
+      p_qty: 1,
+    });
+    setTrading(null);
+    const r = data as unknown as OrderResult;
+    const name = stocks.find((s) => s.symbol === sym)?.name ?? sym;
+    if (error) setNote({ tone: "bad", text: error.message });
+    else if (r.error) setNote({ tone: "bad", text: r.error });
+    else if (r.filled) {
+      setNote({
+        tone: "good",
+        text: tradeSide === "buy" ? `You bought 1 share of ${name} for ${usd(r.avg_cents)}.` : `You sold 1 share of ${name} for ${usd(r.avg_cents)}.`,
+      });
+    } else {
+      setNote({ tone: "info", text: `Nobody was ${tradeSide === "buy" ? "selling" : "buying"} ${name} just then. Try again in a few seconds.` });
+    }
+    refreshMine();
+    refreshQuotes();
+  }
+
+  function switchMode(m: "simple" | "pro") {
+    setMode(m);
+    remember.set("tf-mode", m);
+  }
+
   async function leave() {
     await supabase.auth.signOut();
     onLeave();
@@ -245,6 +309,20 @@ function Desk({ me, onLeave }: { me: Trader; onLeave: () => void }) {
 
   const holdings = stocks.reduce((a, s) => a + (positions[s.symbol]?.qty ?? 0) * s.last_cents, 0);
   const net = cash.cash + holdings;
+  // what you were worth at the opening bell: the same yardstick as the leaderboard
+  const start = market ? market.allowance_cents + market.starting_shares * stocks.reduce((a, s) => a + s.open_cents, 0) : net;
+  const up = net - start;
+
+  if (intro) {
+    return (
+      <Intro
+        onDone={() => {
+          remember.set("tf-intro-seen", "1");
+          setIntro(false);
+        }}
+      />
+    );
+  }
 
   return (
     <main className="desk">
@@ -258,6 +336,15 @@ function Desk({ me, onLeave }: { me: Trader; onLeave: () => void }) {
         </div>
       </header>
 
+      <div className={`scoreline ${up >= 0 ? "good" : "bad"}`}>
+        {Math.abs(up) < 1 ? "You're even so far." : `You're ${up > 0 ? "up" : "down"} ${usd(Math.abs(up))} since the opening bell.`}
+      </div>
+
+      <div className="seg mode">
+        <button className={mode === "simple" ? "on" : ""} onClick={() => switchMode("simple")}>Simple</button>
+        <button className={mode === "pro" ? "on" : ""} onClick={() => switchMode("pro")}>Pro: order book</button>
+      </div>
+
       {headline && (
         <div className={`announce ${headline.mood}`}>
           📰 {headline.symbol ? `${headline.symbol}: ` : ""}{headline.headline}
@@ -265,6 +352,30 @@ function Desk({ me, onLeave }: { me: Trader; onLeave: () => void }) {
       )}
       {market && !market.open && <div className="note info">The market is closed. Waiting for the opening bell.</div>}
 
+      {mode === "simple" && (
+        <>
+          {note && <div className={`note ${note.tone}`}>{note.text}</div>}
+          <SimpleBoard
+            stocks={stocks}
+            quotes={quotes}
+            owned={Object.fromEntries(Object.entries(positions).map(([k, v]) => [k, v.qty]))}
+            samples={samples}
+            busy={trading}
+            onTrade={quickTrade}
+          />
+          <p className="small muted">
+            Buy 1 and Sell 1 trade a single share right away, at the best price anyone is offering. Want to name your own
+            price? Switch to Pro.
+          </p>
+        </>
+      )}
+
+      {mode === "pro" && (
+      <>
+      <p className="small muted pro-help">
+        <b>Market</b> order: trade now at whatever people are asking. <b>Limit</b> order: name your price and wait for
+        someone to take it. The book shows everyone waiting: sellers in red, buyers in green.
+      </p>
       <section className="tickers">
         {stocks.map((s) => (
           <button key={s.symbol} className={`ticker ${s.symbol === symbol ? "on" : ""}`} onClick={() => setSymbol(s.symbol)}>
@@ -331,6 +442,8 @@ function Desk({ me, onLeave }: { me: Trader; onLeave: () => void }) {
       )}
 
       {note && <div className={`note ${note.tone}`}>{note.text}</div>}
+      </>
+      )}
 
       <section className="panel">
         <h2>Your money <span className="muted small">🔒 only you can see this</span></h2>
