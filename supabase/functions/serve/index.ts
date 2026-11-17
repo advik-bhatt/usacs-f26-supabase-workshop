@@ -5,7 +5,8 @@
 // we're inside the handler we know exactly who is serving.
 //
 // Grading and writing the result happen here, with the admin client, because
-// players are not allowed to write to serves or tips themselves.
+// players are not allowed to write to serves, tips or wallets themselves.
+// The money moves inside finish_ticket, in the same transaction.
 
 import { withSupabase } from "npm:@supabase/server@1";
 import { grade } from "./grade.ts";
@@ -39,8 +40,9 @@ export default {
 
     const result = grade(ticket, { size: body.size, toppings: body.toppings }, seconds);
 
-    // finish_ticket checks that the ticket is still yours and you weren't too
-    // slow, then archives the queue message and records the serve, all in one
+    // finish_ticket checks that the ticket is still yours, you weren't too
+    // slow and you can afford the ingredients, then charges you, pays you,
+    // bumps topping prices and archives the queue message, all in one
     // transaction.
     const { data, error } = await ctx.supabaseAdmin.rpc("finish_ticket", {
       p_cook: cookId,
@@ -48,11 +50,17 @@ export default {
       p_correct: result.correct,
       p_score: result.score,
       p_tip_cents: result.tipCents,
+      p_plate_size: body.size,
+      p_plate: body.toppings,
       p_detail: { missing: result.missing, extra: result.extra, by: body.by ?? "hand" },
     });
 
     if (error) {
       return Response.json({ error: error.message, hint: error.hint }, { status: 409 });
+    }
+    if (data?.error) {
+      // refused but recorded (too late, or can't afford it)
+      return Response.json(data, { status: 409 });
     }
 
     console.log(JSON.stringify({ event: "served", ticket: ticketId, cook: cookId, ...data }));

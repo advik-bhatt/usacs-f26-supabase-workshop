@@ -27,7 +27,8 @@ export function grade(order: Order, plate: Order, seconds: number): Grade {
   // 10 for getting it right, up to 5 more for being quick about it
   const speed = Math.max(0, 5 - Math.floor(seconds / 4));
   const score = 10 + speed;
-  const tipCents = 100 + speed * 50;
+  // tips are small next to the price of the pizza; the money is in getting it right
+  const tipCents = speed * 15;
 
   return { correct, score, tipCents, missing, extra };
 }
