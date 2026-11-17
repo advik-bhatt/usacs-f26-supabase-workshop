@@ -21,11 +21,11 @@ export const supabase = createClient<Database>(
 );
 
 type Tables = Database["public"]["Tables"];
-export type Ticket = Tables["tickets"]["Row"];
-export type Topping = Tables["toppings"]["Row"];
-export type Cook = Tables["cooks"]["Row"];
-export type Shift = Tables["shift"]["Row"];
-export type KitchenEvent = Tables["events"]["Row"];
+export type Target = Tables["targets"]["Row"];
+export type AsteroidRow = Tables["asteroids"]["Row"];
+export type Crew = Tables["crew"]["Row"];
+export type Mission = Tables["mission"]["Row"];
+export type MissionEvent = Tables["events"]["Row"];
 
 // Sign in as a guest if we aren't signed in yet. Anonymous users are real
 // users with a real id; they just haven't told us who they are.

@@ -23,7 +23,47 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "cooks": {
+            "asteroids": {
+                  Row: {
+                    "a": number,"ca_date": string,"ca_dist_au": number,"ca_jd": number,"des": string,"diameter_km": number,"diameter_measured": boolean,"e": number,"epoch": number,"fetched_at": string,"h": number,"i": number,"ma": number,"name": string,"om": number,"pha": boolean,"v_inf_kms": number,"w": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "a": number,"ca_date": string,"ca_dist_au": number,"ca_jd": number,"des": string,"diameter_km": number,"diameter_measured"?: boolean,"e": number,"epoch": number,"fetched_at"?: string,"h": number,"i": number,"ma": number,"name": string,"om": number,"pha"?: boolean,"v_inf_kms": number,"w": number
+                  }
+                  Update: {
+                    "a"?: number,"ca_date"?: string,"ca_dist_au"?: number,"ca_jd"?: number,"des"?: string,"diameter_km"?: number,"diameter_measured"?: boolean,"e"?: number,"epoch"?: number,"fetched_at"?: string,"h"?: number,"i"?: number,"ma"?: number,"name"?: string,"om"?: number,"pha"?: boolean,"v_inf_kms"?: number,"w"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"credits": {
+                  Row: {
+                    "amount": number,"created_at": string,"crew_id": string,"id": number,"target_id": number | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount": number,"created_at"?: string,"crew_id": string,"id"?: never,"target_id"?: number | null
+                  }
+                  Update: {
+                    "amount"?: number,"created_at"?: string,"crew_id"?: string,"id"?: never,"target_id"?: number | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "credits_crew_id_fkey"
+      columns: ["crew_id"]
+isOneToOne: false
+      referencedRelation: "crew"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "credits_target_id_fkey"
+      columns: ["target_id"]
+isOneToOne: false
+      referencedRelation: "targets"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"crew": {
                   Row: {
                     "id": string,"joined_at": string,"kind": string,"name": string
                   }
@@ -37,133 +77,99 @@ export type Database = {
                   Relationships: [
                     
                   ]
-                },"events": {
+                },"deflections": {
                   Row: {
-                    "at": string,"cook_id": string | null,"detail": NonNullable<Json>,"id": number,"kind": string,"ticket_id": number | null
+                    "capture_km": number,"crew_id": string,"direction": string,"dv_ms": number,"flown_at": string,"id": number,"lead_days": number,"mass_kg": number,"miss_km": number,"saved": boolean,"score": number,"seconds": number,"target_id": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "at"?: string,"cook_id"?: string | null,"detail"?: NonNullable<Json>,"id"?: never,"kind": string,"ticket_id"?: number | null
+                    "capture_km": number,"crew_id": string,"direction": string,"dv_ms": number,"flown_at"?: string,"id"?: never,"lead_days": number,"mass_kg": number,"miss_km": number,"saved": boolean,"score": number,"seconds": number,"target_id": number
                   }
                   Update: {
-                    "at"?: string,"cook_id"?: string | null,"detail"?: NonNullable<Json>,"id"?: never,"kind"?: string,"ticket_id"?: number | null
+                    "capture_km"?: number,"crew_id"?: string,"direction"?: string,"dv_ms"?: number,"flown_at"?: string,"id"?: never,"lead_days"?: number,"mass_kg"?: number,"miss_km"?: number,"saved"?: boolean,"score"?: number,"seconds"?: number,"target_id"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "deflections_crew_id_fkey"
+      columns: ["crew_id"]
+isOneToOne: false
+      referencedRelation: "crew"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "deflections_target_id_fkey"
+      columns: ["target_id"]
+isOneToOne: true
+      referencedRelation: "targets"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"events": {
+                  Row: {
+                    "at": string,"crew_id": string | null,"detail": NonNullable<Json>,"id": number,"kind": string,"target_id": number | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "at"?: string,"crew_id"?: string | null,"detail"?: NonNullable<Json>,"id"?: never,"kind": string,"target_id"?: number | null
+                  }
+                  Update: {
+                    "at"?: string,"crew_id"?: string | null,"detail"?: NonNullable<Json>,"id"?: never,"kind"?: string,"target_id"?: number | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"mission": {
+                  Row: {
+                    "id": boolean,"open": boolean,"targets_per_tick": number,"updated_at": string,"window_seconds": number,"work_seconds": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "id"?: boolean,"open"?: boolean,"targets_per_tick"?: number,"updated_at"?: string,"window_seconds"?: number,"work_seconds"?: number
+                  }
+                  Update: {
+                    "id"?: boolean,"open"?: boolean,"targets_per_tick"?: number,"updated_at"?: string,"window_seconds"?: number,"work_seconds"?: number
                   }
                   Relationships: [
                     
                   ]
                 },"queue_samples": {
                   Row: {
-                    "at": string,"cooking": number,"oldest_seconds": number | null,"waiting": number
+                    "at": string,"oldest_seconds": number | null,"waiting": number,"working": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "at"?: string,"cooking": number,"oldest_seconds"?: number | null,"waiting": number
+                    "at"?: string,"oldest_seconds"?: number | null,"waiting": number,"working": number
                   }
                   Update: {
-                    "at"?: string,"cooking"?: number,"oldest_seconds"?: number | null,"waiting"?: number
+                    "at"?: string,"oldest_seconds"?: number | null,"waiting"?: number,"working"?: number
                   }
                   Relationships: [
                     
                   ]
-                },"serves": {
+                },"targets": {
                   Row: {
-                    "cook_id": string,"correct": boolean,"id": number,"score": number,"seconds": number,"served_at": string,"ticket_id": number
+                    "attempts": number,"claimed_at": string | null,"crew_id": string | null,"des": string,"done_at": string | null,"id": number,"msg_id": number | null,"posted_at": string,"status": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "cook_id": string,"correct": boolean,"id"?: never,"score": number,"seconds": number,"served_at"?: string,"ticket_id": number
+                    "attempts"?: number,"claimed_at"?: string | null,"crew_id"?: string | null,"des": string,"done_at"?: string | null,"id"?: never,"msg_id"?: number | null,"posted_at"?: string,"status"?: string
                   }
                   Update: {
-                    "cook_id"?: string,"correct"?: boolean,"id"?: never,"score"?: number,"seconds"?: number,"served_at"?: string,"ticket_id"?: number
+                    "attempts"?: number,"claimed_at"?: string | null,"crew_id"?: string | null,"des"?: string,"done_at"?: string | null,"id"?: never,"msg_id"?: number | null,"posted_at"?: string,"status"?: string
                   }
                   Relationships: [
                     {
-      foreignKeyName: "serves_cook_id_fkey"
-      columns: ["cook_id"]
+      foreignKeyName: "targets_crew_id_fkey"
+      columns: ["crew_id"]
 isOneToOne: false
-      referencedRelation: "cooks"
+      referencedRelation: "crew"
       referencedColumns: ["id"]
     },{
-      foreignKeyName: "serves_ticket_id_fkey"
-      columns: ["ticket_id"]
-isOneToOne: true
-      referencedRelation: "tickets"
-      referencedColumns: ["id"]
-    }
-                  ]
-                },"shift": {
-                  Row: {
-                    "cook_seconds": number,"id": boolean,"open": boolean,"patience_seconds": number,"tickets_per_tick": number,"updated_at": string
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "cook_seconds"?: number,"id"?: boolean,"open"?: boolean,"patience_seconds"?: number,"tickets_per_tick"?: number,"updated_at"?: string
-                  }
-                  Update: {
-                    "cook_seconds"?: number,"id"?: boolean,"open"?: boolean,"patience_seconds"?: number,"tickets_per_tick"?: number,"updated_at"?: string
-                  }
-                  Relationships: [
-                    
-                  ]
-                },"tickets": {
-                  Row: {
-                    "attempts": number,"claimed_at": string | null,"cook_id": string | null,"done_at": string | null,"id": number,"msg_id": number | null,"placed_at": string,"size": string,"status": string,"toppings": (string)[]
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "attempts"?: number,"claimed_at"?: string | null,"cook_id"?: string | null,"done_at"?: string | null,"id"?: never,"msg_id"?: number | null,"placed_at"?: string,"size": string,"status"?: string,"toppings": (string)[]
-                  }
-                  Update: {
-                    "attempts"?: number,"claimed_at"?: string | null,"cook_id"?: string | null,"done_at"?: string | null,"id"?: never,"msg_id"?: number | null,"placed_at"?: string,"size"?: string,"status"?: string,"toppings"?: (string)[]
-                  }
-                  Relationships: [
-                    {
-      foreignKeyName: "tickets_cook_id_fkey"
-      columns: ["cook_id"]
+      foreignKeyName: "targets_des_fkey"
+      columns: ["des"]
 isOneToOne: false
-      referencedRelation: "cooks"
-      referencedColumns: ["id"]
+      referencedRelation: "asteroids"
+      referencedColumns: ["des"]
     }
-                  ]
-                },"tips": {
-                  Row: {
-                    "cents": number,"cook_id": string,"created_at": string,"id": number,"ticket_id": number | null
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "cents": number,"cook_id": string,"created_at"?: string,"id"?: never,"ticket_id"?: number | null
-                  }
-                  Update: {
-                    "cents"?: number,"cook_id"?: string,"created_at"?: string,"id"?: never,"ticket_id"?: number | null
-                  }
-                  Relationships: [
-                    {
-      foreignKeyName: "tips_cook_id_fkey"
-      columns: ["cook_id"]
-isOneToOne: false
-      referencedRelation: "cooks"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "tips_ticket_id_fkey"
-      columns: ["ticket_id"]
-isOneToOne: false
-      referencedRelation: "tickets"
-      referencedColumns: ["id"]
-    }
-                  ]
-                },"toppings": {
-                  Row: {
-                    "emoji": string,"label": string,"slug": string
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "emoji": string,"label": string,"slug": string
-                  }
-                  Update: {
-                    "emoji"?: string,"label"?: string,"slug"?: string
-                  }
-                  Relationships: [
-                    
                   ]
                 }
           }
@@ -171,42 +177,44 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "finish_ticket":
-{ Args: { "p_cook": string,"p_correct": boolean,"p_detail"?: Json,"p_score": number,"p_ticket": number,"p_tip_cents": number }; Returns: Json
+            "announce":
+{ Args: { "p_text": string }; Returns: undefined
                            },
-"grab_ticket":
+"claim_target":
 { Args: Record<PropertyKey, never>; Returns: {
               "attempts": number,
 "claimed_at": string | null,
-"cook_id": string | null,
+"crew_id": string | null,
+"des": string,
 "done_at": string | null,
 "id": number,
 "msg_id": number | null,
-"placed_at": string,
-"size": string,
-"status": string,
-"toppings": (string)[]
+"posted_at": string,
+"status": string
             }[]
                           SetofOptions: {
         from: "*"
-        to: "tickets"
+        to: "targets"
         isOneToOne: false
         isSetofReturn: true
       } },
-"kitchen_tick":
-{ Args: Record<PropertyKey, never>; Returns: undefined
-                           },
-"log_event":
-{ Args: { "p_cook"?: string,"p_detail"?: Json,"p_kind": string,"p_ticket"?: number }; Returns: undefined
-                           },
-"pass_stats":
+"control_stats":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
-"place_orders":
-{ Args: { "p_count"?: number }; Returns: number
+"finish_target":
+{ Args: { "p_capture_km": number,"p_crew": string,"p_direction": string,"p_dv_ms": number,"p_lead_days": number,"p_mass_kg": number,"p_miss_km": number,"p_saved": boolean,"p_score": number,"p_target": number }; Returns: Json
                            },
-"shout":
-{ Args: { "p_text": string }; Returns: undefined
+"jd_now":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
+"log_event":
+{ Args: { "p_crew"?: string,"p_detail"?: Json,"p_kind": string,"p_target"?: number }; Returns: undefined
+                           },
+"mission_tick":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"post_targets":
+{ Args: { "p_count"?: number }; Returns: number
                            }
           }
           Enums: {

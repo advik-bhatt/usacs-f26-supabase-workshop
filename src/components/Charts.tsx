@@ -5,8 +5,8 @@ const W = 600;
 const H = 160;
 const PAD = 24;
 
-export type DepthPoint = { at: string; waiting: number; cooking: number };
-export type FlowPoint = { t: string; placed: number; served: number; botched: number; walked_out: number };
+export type DepthPoint = { at: string; waiting: number; working: number };
+export type FlowPoint = { t: string; posted: number; saved: number; impact: number; expired: number };
 
 const WINDOW_MS = 5 * 60 * 1000;
 
@@ -16,42 +16,42 @@ function x(at: string, now: number) {
 }
 
 export function DepthChart({ points, now }: { points: DepthPoint[]; now: number }) {
-  const max = Math.max(4, ...points.map((p) => p.waiting + p.cooking));
+  const max = Math.max(4, ...points.map((p) => p.waiting + p.working));
   const y = (v: number) => H - PAD - (v / max) * (H - PAD * 2);
-  const line = (key: "waiting" | "cooking") =>
+  const line = (key: "waiting" | "working") =>
     points.map((p, i) => `${i ? "L" : "M"}${x(p.at, now).toFixed(1)},${y(p[key]).toFixed(1)}`).join(" ");
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label="Tickets waiting and cooking over the last five minutes">
+    <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label="Targets waiting and being worked over the last five minutes">
       <Grid max={max} y={y} />
       <path d={line("waiting")} className="ln waiting" />
-      <path d={line("cooking")} className="ln cooking" />
+      <path d={line("working")} className="ln working" />
       <text x={W - PAD} y={14} textAnchor="end" className="legend">
-        <tspan className="waiting">━ waiting</tspan> <tspan className="cooking">━ cooking</tspan>
+        <tspan className="waiting">━ on the board</tspan> <tspan className="working">━ being worked</tspan>
       </text>
     </svg>
   );
 }
 
 export function FlowChart({ points, now }: { points: FlowPoint[]; now: number }) {
-  const max = Math.max(3, ...points.map((p) => Math.max(p.placed, p.served + p.botched + p.walked_out)));
+  const max = Math.max(3, ...points.map((p) => Math.max(p.posted, p.saved + p.impact + p.expired)));
   const y = (v: number) => H - PAD - (v / max) * (H - PAD * 2);
   const bw = ((W - PAD * 2) / 30) * 0.42; // 30 ten-second buckets in five minutes
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label="Orders placed versus finished every ten seconds">
+    <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label="Targets posted versus resolved every ten seconds">
       <Grid max={max} y={y} />
       {points.map((p) => {
         const cx = x(p.t, now) + bw;
         const done = [
-          ["served", p.served],
-          ["botched", p.botched],
-          ["walked", p.walked_out],
+          ["saved", p.saved],
+          ["impact", p.impact],
+          ["expired", p.expired],
         ] as const;
         let top = H - PAD;
         return (
           <g key={p.t}>
-            <rect className="bar placed" x={cx - bw - 1} y={y(p.placed)} width={bw} height={H - PAD - y(p.placed)} />
+            <rect className="bar posted" x={cx - bw - 1} y={y(p.posted)} width={bw} height={H - PAD - y(p.posted)} />
             {done.map(([cls, v]) => {
               const h = H - PAD - y(v);
               top -= h;
@@ -61,8 +61,8 @@ export function FlowChart({ points, now }: { points: FlowPoint[]; now: number })
         );
       })}
       <text x={W - PAD} y={14} textAnchor="end" className="legend">
-        <tspan className="placed">■ in</tspan> <tspan className="served">■ served</tspan>{" "}
-        <tspan className="botched">■ botched</tspan> <tspan className="walked">■ walked out</tspan>
+        <tspan className="posted">■ posted</tspan> <tspan className="saved">■ saved</tspan>{" "}
+        <tspan className="impact">■ impact</tspan> <tspan className="expired">■ window closed</tspan>
       </text>
     </svg>
   );

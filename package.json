@@ -1,5 +1,5 @@
 {
-  "name": "dinner-rush",
+  "name": "deflect",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -9,7 +9,9 @@
     "preview": "vite preview --host",
     "env:local": "node scripts/write-env.mjs",
     "types": "supabase gen types typescript --local > src/lib/database.types.ts",
-    "bots": "node bots/cooks.mjs"
+    "bots": "node bots/crew.mjs",
+    "nasa:fetch": "node scripts/fetch-asteroids.mjs",
+    "check:physics": "node scripts/check-physics.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",
