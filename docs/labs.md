@@ -115,7 +115,7 @@ Or open `supabase/migrations/*_who_can_do_what.sql`.
 npx supabase test db
 ```
 
-Twelve pgTAP tests pretend to be two different cooks and check that each one can only do what they should. Now break something on purpose:
+Seventeen pgTAP tests pretend to be two different cooks and check that each one can only do what they should. Now break something on purpose:
 
 ```bash
 npx supabase db query 'drop policy "your tips are yours" on tips'
@@ -223,7 +223,35 @@ npx supabase db query "select calls, round(mean_exec_time::numeric, 2) as avg_ms
 
 The `WITH pgrst_source AS ...` rows are what your `supabase.rpc("grab_ticket")` calls turn into once PostgREST gets hold of them.
 
-## 14. Read the event log like a detective
+## 14. Run the economy
+
+Every cook has a wallet (private, RLS) and every topping has a price that moves with demand. Watch the pantry panel on the pass screen while you try these.
+
+Print money:
+
+```bash
+npx supabase db query "select stimulus(500)"
+```
+
+Every wallet gets $5. Nobody made anything new, so there are more dollars chasing the same toppings. Broke cooks start cooking again, demand goes up, and so do prices.
+
+Make demand matter more, and supply recover slower:
+
+```bash
+npx supabase db query "update shift set demand_bump = 0.20, restock_rate = 0.01"
+```
+
+Prices spiral. Old tickets, priced when ingredients were cheap, start losing money. Watch the inequality score: the cooks who got in early pull away. Put it back with `demand_bump = 0.06, restock_rate = 0.05`.
+
+Where did your money go? Your ledger is yours only:
+
+```bash
+npx supabase db query "select reason, count(*), sum(cents) from ledger group by reason"
+```
+
+That's the host's view (the CLI connects as `postgres`, which bypasses RLS). From the browser, the same query only returns your own rows. The pass screen's economy panel comes from `economy_stats()`, a `security definer` function that can read every wallet but only ever returns totals, a median and a Gini coefficient. That's a pattern worth stealing: aggregate in the database, never ship the rows.
+
+## 15. Read the event log like a detective
 
 Every ticket's whole life is in `public.events`. Click a line on the pass screen to see one as a timeline, or query it:
 
@@ -240,7 +268,7 @@ npx supabase db query "select c.name, round(avg(s.seconds), 1) as avg_s, count(*
 
 This is the bridge to December: logs you can query are the start of observability.
 
-## 15. Watch the Edge Function
+## 16. Watch the Edge Function
 
 Every serve goes through `supabase/functions/serve`. It logs one JSON line per plate:
 
@@ -250,7 +278,7 @@ docker logs -f supabase_edge_runtime_usacs-f26-supabase-workshop
 
 On a hosted project the same thing is `npx supabase logs --remote` (it opens an interactive viewer; `npx supabase logs sources --remote` lists what you can filter by).
 
-## 16. Keep your data
+## 17. Keep your data
 
 The free plan doesn't give you downloadable backups. The CLI does:
 
@@ -260,7 +288,7 @@ npx supabase db dump --data-only -f backup.sql
 
 Add `--remote` to dump a hosted project.
 
-## 17. Ship it
+## 18. Ship it
 
 Everything you just did locally goes to a free hosted project with five commands:
 

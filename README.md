@@ -1,8 +1,12 @@
-# Dinner Rush
+# Dinner Rush: market edition
 
-A multiplayer pizza kitchen that runs on Supabase. Built for the USACS Supabase workshop (Fall 2026).
+A multiplayer pizza kitchen with a real economy, running on Supabase. Built for the USACS Supabase workshop (Fall 2026).
 
-Everyone in the room joins from their phone and works the line. Orders come in every ten seconds. You grab a ticket, build the pizza, and serve it before the timer runs out. If you're too slow, the ticket goes back on the rail and someone else gets it. The projector shows the whole kitchen live: how full the rail is, what's getting served, who's winning, and who just tried to cheat and got stopped by Postgres.
+Everyone in the room joins from their phone and works the line. Orders come in every ten seconds. You grab a ticket, build the pizza, and serve it before the timer runs out. If you're too slow, the ticket goes back on the rail and someone else gets it.
+
+And it costs money. Every cook starts with a $20 allowance. The customer's price is fixed when they order, but you pay for ingredients at today's prices when you cook, and prices move with demand: every topping that goes on a plate gets 6% more expensive for everyone, and drifts back as the pantry restocks. If the whole room piles onto pepperoni, pepperoni orders stop being profitable. Botch a pizza and you eat the cost. Run out of cash and you can't cook until prices come down.
+
+The projector shows the whole kitchen live: how full the rail is, live ingredient prices and their history, the money supply, the median wallet, how unequal the room has become, who's most profitable, and who just tried to cheat and got stopped by Postgres.
 
 The point isn't the pizza. Every part of the game is a Supabase feature doing its actual job, and you drive the whole thing from the Supabase CLI.
 
@@ -12,7 +16,10 @@ The point isn't the pizza. Every part of the game is a Supabase feature doing it
 | Grabbing a ticket so nobody else can | a `pgmq` queue and its visibility timeout |
 | "Too slow, it went back on the rail" | the same visibility timeout running out |
 | Clocking in with just a name | anonymous sign-in |
-| Your tips (only you can see them) | Row Level Security |
+| Your wallet and ledger (only you can see them) | Row Level Security |
+| Prices that rise with demand and fall as the pantry restocks | `finish_ticket()` and the cron tick |
+| A new cook's $20 allowance | a trigger on `cooks` |
+| Money supply, median wallet, Gini coefficient | a `security definer` function that only returns totals |
 | The cheat menu failing three different ways | grants vs. RLS policies |
 | Grading your pizza | an Edge Function using the secret key |
 | The pass screen updating by itself | Realtime: Postgres Changes, Broadcast, Presence |
@@ -82,6 +89,7 @@ supabase/
     ..._who_can_do_what.sql   grants and RLS policies
     ..._the_rail.sql          the pgmq queue and the functions that move tickets
     ..._realtime_and_cron.sql publication + the 10 second cron job
+    ..._market.sql            wallets, ledger, demand pricing, economy stats, stimulus
   seed.sql                    the toppings
   functions/serve/            Edge Function that grades a pizza and records it
   tests/                      pgTAP tests for the security rules (`npx supabase test db`)
@@ -111,6 +119,19 @@ This repo is set up for the next workshop on purpose.
 - `public.queue_samples` is a metric: how deep the queue was every ten seconds. Events tell you what happened, metrics tell you how busy it was.
 - `bots/cooks.mjs` is a pool of workers pulling jobs off a Postgres queue with a timeout and retries. Replace the `decide()` function with a call to a model and it's a pool of agents. Everything they do is already logged and already on the dashboard.
 - `supabase start` also runs a local MCP server (`npx supabase status` shows `MCP_URL`), so an agent can read this database without touching a real project.
+
+## Running the economy
+
+All from the terminal, all visible on the pass screen within ten seconds:
+
+```bash
+npx supabase db query "select stimulus(500)"                      # print money: everyone gets $5
+npx supabase db query "update shift set demand_bump = 0.20"       # every purchase moves prices 20%
+npx supabase db query "update shift set restock_rate = 0.01"      # the pantry barely restocks
+npx supabase db query "update shift set allowance_cents = 500"    # newcomers start poor
+```
+
+Try `stimulus` while prices are high and watch what happens to them. Try a high `demand_bump` with a slow `restock_rate` and watch the Gini coefficient.
 
 ## Good to know
 

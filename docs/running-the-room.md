@@ -45,6 +45,8 @@ Rough order. Every command is something the room can watch happen.
 | 10 | "Some of you are trying to cheat. Let's see how that's going." | point at **Blocked by Postgres** |
 | 12 | Explain grants vs. RLS using the three error shapes on screen | open `supabase/migrations/*_who_can_do_what.sql` |
 | 18 | "86 the pineapple." | `... "select shout('86 the pineapple')"` |
+| 19 | "Pepperoni's getting expensive. Who's broke?" | point at the pantry and the economy panel |
+| 20 | "Let's print some money." | `... "select stimulus(500)"`, then watch prices climb |
 | 20 | "You're too slow. Let me help." | `npm run bots -- 6` |
 | 22 | "Robots are beating you. In December, they'll be AI." | point at the leaderboard |
 | 25 | Close the kitchen, switch to labs on their own laptops | `... "update shift set open = false"` |
