@@ -48,14 +48,18 @@ From the CLI you see every order (you're connected as `postgres`, which skips RL
 
 ## 4. Make a trade happen
 
-On your phone, buy 5 SLICE with a market order. Then:
+On your phone, tap **Buy 1** on Slice Labs (that's a market order for one share). Then:
 
 ```bash
 npx supabase db query "select * from trades order by id desc limit 5"
 npx supabase db query "select symbol, last_cents, volume from stocks"
 ```
 
-The trade is on the tape, and `last_cents` moved. Nothing else in the system sets a price. Try a limit order far from the market and watch it sit on the book (and in the phone's open orders) until you cancel it.
+The trade is on the tape, and `last_cents` moved. Nothing else in the system sets a price. Now switch to **Pro**, place a limit order far from the market, and watch it sit on the book (and in your open orders) until you cancel it. The simple screen's "costs about" prices come from `quotes()`:
+
+```bash
+npx supabase db query "select quotes()"
+```
 
 ## 5. Drop some news
 

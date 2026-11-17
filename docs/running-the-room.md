@@ -39,8 +39,9 @@ A rough order. Every command is something the room can watch happen.
 | --- | --- | --- |
 | 0 | "Scan the QR, pick a name. You've got $10,000 and some shares." | (nothing, let them join) |
 | 2 | "Nobody sets these prices. You do. Opening bell." | `npx supabase db query --remote "update market set open = true"` and `npm run bots` |
-| 4 | "This is the order book. Buyers on the bottom, sellers on top. The gap is the spread." | point at the book on the floor |
-| 6 | "Buy something with a market order and watch the tape." | point at the tape and the SLICE card |
+| 3 | "Everybody: pick a company you like and tap Buy 1. Watch the big screen." | point at the tape and the prices moving |
+| 5 | "Buy 1 cost you $42.19. Sell 1 right now only gets $41.78. Where did 41 cents go?" | point at the SLICE book on the floor: that gap is the spread, and it's how the market makers get paid |
+| 7 | "Want to name your own price? Tap Pro." Explain limit vs. market orders with the book on screen | point at the book on the floor |
 | 9 | "Breaking news." | `... "select news('ORBIT', 'Asteroid confirmed: it is mostly platinum', 'good')"` |
 | 11 | "Who got there first? The bots, or you?" | point at the tape and the leaderboard |
 | 13 | "Some of you are trying to cheat." | point at the halts/cheaters panel |
