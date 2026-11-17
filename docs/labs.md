@@ -1,6 +1,6 @@
 # Labs
 
-Each of these is a command or two in your terminal, then something you can watch change. Keep mission control (`http://localhost:5173/#/control`) open next to your terminal the whole time.
+Each of these is a command or two in your terminal, then something you can watch change. Keep the floor (`http://localhost:5173/#/floor`) open next to your terminal the whole time.
 
 All of these run against your local stack. Add `--remote` to most `supabase` commands to point them at a linked hosted project instead.
 
@@ -10,7 +10,8 @@ Before you start:
 npx supabase start
 npm run env:local
 npm run dev
-npm run bots -- 3        # in another terminal, so there's something to watch
+npx supabase db query "update market set open = true"
+npm run bots        # in another terminal, so there's a market to watch
 ```
 
 ---
@@ -21,274 +22,220 @@ npm run bots -- 3        # in another terminal, so there's something to watch
 npx supabase status
 ```
 
-That's a whole Supabase project on your laptop: Postgres, the REST API, Auth, Realtime, Storage, Edge Functions, a local copy of the dashboard (Studio) and a fake inbox (Mailpit). Open Studio at http://127.0.0.1:54323 and find the `asteroids` table. Those are real orbits from NASA/JPL.
+That's a whole Supabase project on your laptop: Postgres, the REST API, Auth, Realtime, Storage, Edge Functions, a local copy of the dashboard (Studio) and a fake inbox (Mailpit). Open Studio at http://127.0.0.1:54323 and look at the `stocks` and `orders` tables.
 
-Nothing here costs anything or needs an account.
-
-## 2. Open the board
+## 2. Ring the bell
 
 ```bash
-npx supabase db query "update mission set open = true"
+npx supabase db query "update market set open = true"
 ```
 
-Mission control flips to BOARD OPEN and new targets start appearing every ten seconds. You changed one row and every connected screen found out. The phones heard it through Realtime (Postgres Changes on the `mission` table).
+Every phone's "market is closed" banner disappears. One row changed, and every screen heard about it through Realtime (Postgres Changes on `market`).
 
-## 3. Make it a crisis
+## 3. Read the order book from SQL
 
 ```bash
-npx supabase db query "update mission set targets_per_tick = 5"
+npx supabase db query "select order_book('SLICE')"
 ```
 
-Watch "on the board" climb. Targets nobody takes within `window_seconds` expire, and the dark red bars show up. Now squeeze the team:
+Bids (people waiting to buy) and asks (people waiting to sell), grouped by price. The gap between the best bid and the best ask is the spread; the market makers earn it. Now look at the raw orders underneath:
 
 ```bash
-npx supabase db query "update mission set work_seconds = 20"
+npx supabase db query "select id, side, kind, qty, filled, limit_cents, status from orders where symbol = 'SLICE' and status = 'open' order by side, limit_cents"
 ```
 
-Twenty seconds to design a mission. People start getting "too slow, it went back on the board." Put it back when you've seen enough:
+From the CLI you see every order (you're connected as `postgres`, which skips RLS). From a phone, the same table only shows you your own. `order_book()` is a `security definer` function, so it can read everyone's orders, but it only hands back price levels: no names, no order ids. That's how real exchanges publish their books.
+
+## 4. Make a trade happen
+
+On your phone, buy 5 SLICE with a market order. Then:
 
 ```bash
-npx supabase db query "update mission set targets_per_tick = 1, work_seconds = 90"
+npx supabase db query "select * from trades order by id desc limit 5"
+npx supabase db query "select symbol, last_cents, volume from stocks"
 ```
 
-## 4. Look inside the queue
+The trade is on the tape, and `last_cents` moved. Nothing else in the system sets a price. Try a limit order far from the market and watch it sit on the book (and in the phone's open orders) until you cancel it.
 
-The board is a `pgmq` queue. It's just Postgres tables, so you can look at it:
+## 5. Drop some news
 
 ```bash
-npx supabase db query "select * from pgmq.metrics('targets')"
-npx supabase db query "select msg_id, read_ct, vt, message from pgmq.q_targets order by msg_id"
+npx supabase db query "select news('ORBIT', 'Asteroid confirmed: it is mostly platinum', 'good')"
 ```
 
-`vt` is the visibility timeout. When someone takes a target, `vt` jumps forward by `work_seconds` and nobody else can read that message until then. `read_ct` above 1 means somebody ran out of time and it came back. Finished targets move to the archive:
+The headline lands on every screen (Realtime Broadcast, sent from SQL), the market makers raise their idea of what ORBIT is worth, and the price follows. Who in the room reacted first? Try one that hits everything:
 
 ```bash
-npx supabase db query "select count(*) from pgmq.a_targets"
+npx supabase db query "select news(null, 'Interest rates up half a point', 'bad')"
 ```
 
-## 5. The cron job that runs the mission
+## 6. Trip the circuit breaker
+
+Start some momentum traders, which buy what's going up and sell what's going down:
 
 ```bash
-npx supabase db query "select jobid, jobname, schedule, command from cron.job"
+npm run bots -- --makers 2 --noise 3 --momentum 5
+```
+
+Then lower the bar:
+
+```bash
+npx supabase db query "update market set breaker_pct = 0.05"
+```
+
+Drop a couple of headlines. When a stock moves 5% from the open, it halts: the card turns red, orders bounce with "halted by the circuit breaker", and a minute later the cron tick reopens it. Watch the halts panel on the floor. Put it back with `breaker_pct = 0.20`.
+
+## 7. The cron job that keeps the floor running
+
+```bash
+npx supabase db query "select jobname, schedule, command from cron.job"
 npx supabase db query "select status, count(*) from cron.job_run_details group by status"
 ```
 
-`mission-tick` runs every 10 seconds, inside the database. No server is awake to do it. Stop it and the board goes quiet:
+`market-tick` samples every price for the charts and reopens halted stocks. Stop it and halted stocks stay halted:
 
 ```bash
-npx supabase db query "select cron.unschedule('mission-tick')"
+npx supabase db query "select cron.unschedule('market-tick')"
+npx supabase db query "select cron.schedule('market-tick', '10 seconds', 'select public.market_tick()')"
 ```
 
-Bring it back:
+## 8. Try to cheat
+
+On your phone, tap **Try to cheat** and hit every button. Each is a real request with your real session:
+
+- `42501 permission denied for table accounts`: no grant. You can't even attempt to update your cash.
+- `42501 new row violates row-level security policy for table "orders"`: the grant is there (on purpose), but no policy lets you insert an order directly.
+- `200 OK` with only your own rows: a policy quietly filtered everyone else's positions.
+- `refused`: the request reached `place_order()` or `cancel_order()`, and the engine said no. Selling shares you don't have, cancelling someone else's order.
+
+Read the rules:
 
 ```bash
-npx supabase db query "select cron.schedule('mission-tick', '10 seconds', 'select public.mission_tick()')"
+npx supabase db query "select tablename, policyname, cmd from pg_policies where schemaname = 'public' order by tablename"
 ```
 
-## 6. Talk to every screen from SQL
-
-```bash
-npx supabase db query "select announce('Apophis is on the board. Good luck.')"
-```
-
-That's Realtime Broadcast, sent from inside Postgres with `realtime.send()`. It shows up on every phone and the projector.
-
-## 7. Try to cheat
-
-On your phone, tap **Try to cheat** and hit every button. Each one is a real request with your real session. They fail in different ways:
-
-- `42501 permission denied for table mission`: there's no grant. The request never got as far as looking at rows.
-- `42501 new row violates row-level security policy`: the grant is there, but no policy says yes.
-- `200 OK` with only your own rows: a policy filtered the rest out, with no error at all.
-- **Tell the server it missed by a mile**: the Edge Function ignores the numbers you send and runs the physics itself. This is the one that matters most for anything with a score, a price or a balance in it.
-
-Now read the rules that did it:
-
-```bash
-npx supabase db query "select tablename, policyname, cmd, roles from pg_policies where schemaname = 'public'"
-```
-
-Or open `supabase/migrations/*_who_can_do_what.sql`.
-
-## 8. Prove the rules with tests
+## 9. Prove the rules, and the money, with tests
 
 ```bash
 npx supabase test db
 ```
 
-Thirteen pgTAP tests pretend to be two people, Ana and Ben, and check that each can only do what they should. Now break something on purpose:
+Twenty-four pgTAP tests. Some check who can see what. The rest check the economics: trades happen at the resting order's price, reserved cash can't be spent twice, cancelling releases it, and at the end no money or shares have been created or destroyed. Break something:
 
 ```bash
-npx supabase db query 'drop policy "your credits are yours" on credits'
-npx supabase db query 'create policy "oops" on credits for select to authenticated using (true)'
+npx supabase db query 'drop policy "your shares are yours" on positions'
+npx supabase db query 'create policy "oops" on positions for select to authenticated using (true)'
 npx supabase test db
 ```
 
-Two tests fail, and the failure says exactly what leaked: Ana sees 2 rows instead of 1. Undo it by rebuilding the database from the migrations:
+The failure tells you exactly what leaked. Rebuild from the migrations:
 
 ```bash
 npx supabase db reset
 ```
 
-`db reset` drops everything and replays `supabase/migrations/` and `seed.sql`. The game data goes with it, which is the point: the migrations are the source of truth, not whatever's in the database right now.
+## 10. Check the books balance
 
-## 9. The leak, and the advisor that catches it
-
-Make a table the quick way:
+Conservation is the first thing an exchange has to get right. With bots trading, run this a few times:
 
 ```bash
-npx supabase db query "create table public.launch_codes (id int primary key, code text)"
-npx supabase db query "insert into launch_codes values (1, '00000000')"
+npx supabase db query "select (select sum(cash_cents) from accounts) as cash, (select sum(qty) from positions) as shares, (select count(*) from traders) as traders"
 ```
 
-Now read it with nothing but the publishable key, which is what anyone on the internet has:
+Cash should always be traders × $10,000, and shares traders × 5 × 20, no matter how many trades happen. If they ever drift, `place_order()` has a bug.
+
+## 11. List a new company
 
 ```bash
-curl "http://127.0.0.1:54321/rest/v1/launch_codes?select=*" -H "apikey: $(grep PUBLISHABLE .env.local | cut -d= -f2)"
+npx supabase migration new ipo_comet
 ```
 
-You get the code. Ask the advisor:
-
-```bash
-npx supabase db advisors
-```
-
-`rls_disabled_in_public`, level ERROR. Fix it and curl again:
-
-```bash
-npx supabase db query "alter table launch_codes enable row level security"
-```
-
-Now you get `[]`. RLS with no policies lets nothing through.
-
-## 10. Turn a change into a migration
-
-Make a change by hand (or click around in Studio), then ask the CLI what's different from your migration files:
-
-```bash
-npx supabase db diff
-```
-
-You'll see `launch_codes` from the last lab, including the grants to `anon` you never asked for. That's what you'd have shipped. Save it as a real migration if you want to keep it:
-
-```bash
-npx supabase db diff -f launch_codes
-```
-
-Or throw it away with `npx supabase db reset`.
-
-## 11. Write a migration
-
-JPL gives close approach distances in AU. Add a column in kilometers that Postgres keeps up to date by itself:
-
-```bash
-npx supabase migration new add_distance_in_km
-```
-
-Open the new file in `supabase/migrations/` and put this in it:
+Put this in the new file:
 
 ```sql
-alter table public.asteroids
-  add column ca_dist_km double precision
-  generated always as (ca_dist_au * 149597870.7) stored;
+insert into public.stocks (symbol, name, blurb, open_cents, last_cents)
+values ('COMET', 'Comet Coffee', 'Espresso by drone', 1500, 1500);
+
+-- every trader gets 10 shares, so there's someone to sell
+insert into public.positions (trader_id, symbol, qty)
+select id, 'COMET', 10 from public.traders;
 ```
 
-Apply just the new migration, without resetting anything:
+Apply it without resetting anything:
 
 ```bash
 npx supabase migration up
 npx supabase migration list
-npx supabase db query "select name, round(ca_dist_km) as km from asteroids order by ca_dist_km limit 5"
 ```
 
-Apophis comes out on top at about 38,000 km, closer than the satellites that carry your TV signal.
+Refresh your phone: COMET is trading. (The bots only learn about it when you restart them.) Run lab 10 again: the share count went up by exactly the shares you issued. That's what an IPO does.
 
-## 12. Types from the schema
+## 12. The leak, and the advisor that catches it
+
+```bash
+npx supabase db query "create table public.insider_tips (id int primary key, tip text)"
+npx supabase db query "insert into insider_tips values (1, 'buy ORBIT before the news')"
+curl "http://127.0.0.1:54321/rest/v1/insider_tips?select=*" -H "apikey: $(grep PUBLISHABLE .env.local | cut -d= -f2)"
+npx supabase db advisors
+```
+
+Anyone with the publishable key can read it, and the advisor flags `rls_disabled_in_public` as an ERROR. Fix it and curl again:
+
+```bash
+npx supabase db query "alter table insider_tips enable row level security"
+```
+
+Then see what you would have shipped with `npx supabase db diff`, and throw it away with `npx supabase db reset`.
+
+## 13. Types from the schema
 
 ```bash
 npm run types
 ```
 
-This regenerates `src/lib/database.types.ts` from the live database. Search it for `ca_dist_km`: the column from the last lab is there now, and TypeScript will tell you if the app uses a column that doesn't exist.
+Regenerates `src/lib/database.types.ts`. `place_order`'s arguments are typed from the SQL function signature, so the app can't call it wrong.
 
-## 13. Where is the time going?
+## 14. Who's making money?
+
+The leaderboard (net worth at last prices) comes from `floor_stats()`:
+
+```bash
+npx supabase db query "select jsonb_pretty(floor_stats() -> 'leaderboard')"
+```
+
+Which strategy is winning: the market makers, the noise traders, the momentum traders, or the humans? Over a long session, market makers usually grind out the spread while noise traders pay it. Momentum traders do great in a trend and terribly when it reverses. Check after a few headlines.
+
+## 15. Where is the time going?
 
 ```bash
 npx supabase inspect db table-stats
-npx supabase inspect db outliers
+npx supabase db query "select calls, round(mean_exec_time::numeric, 2) as avg_ms, left(query, 80) as query from extensions.pg_stat_statements where query ~* 'place_order|order_book|floor_stats' order by calls desc"
 ```
 
-`table-stats` shows row counts and how often each table gets scanned start to finish (`Seq scans`). Before you add an index, check the row count: on a table this small Postgres reads the whole thing on purpose because it's faster than using an index.
+`place_order` holds one lock for the whole exchange while it matches. How long does each call take? That number times the orders per second is how busy the lock is. Real exchanges live and die by that number.
 
-`outliers` and `calls` cover the whole database, and the top of those lists is Supabase's own services talking to Postgres, not the game. To see just the game, ask the same source they read from:
-
-```bash
-npx supabase db query "select calls, round(mean_exec_time::numeric, 2) as avg_ms, left(query, 80) as query from extensions.pg_stat_statements where query ~* 'claim_target|mission_tick|control_stats' order by calls desc"
-```
-
-The `WITH pgrst_source AS ...` rows are what your `supabase.rpc("claim_target")` calls turn into once PostgREST gets hold of them.
-
-## 14. Read the event log like a flight director
-
-Every target's whole life is in `public.events`. Click a line on mission control to see one as a timeline, or query it:
-
-```bash
-npx supabase db query "select kind, count(*) from events group by kind order by 2 desc"
-```
-
-Which direction works best? The answer is real orbital mechanics:
-
-```bash
-npx supabase db query "select detail->>'direction' as direction, count(*) filter (where kind = 'saved') as saves, count(*) filter (where kind = 'impact') as impacts from events where kind in ('saved', 'impact') group by 1"
-```
-
-Pushing along the orbit (prograde or retrograde) wins, because changing an asteroid's speed changes its orbital period, and the timing error keeps growing every lap. A sideways push mostly doesn't.
-
-## 15. How good is the physics?
-
-```bash
-npm run check:physics
-```
-
-It propagates every asteroid in the database with our model and compares the distance to Earth at close approach against the number JPL publishes. JPL's model includes every planet; ours only has the Sun. The median error is about 6%. Look at the worst ones: they're very close passes, where a small error becomes a big percentage and Earth's own pull, which we ignore, matters most. A model you can't check is a model you shouldn't trust.
-
-## 16. Watch the Edge Function
-
-Every launch goes through `supabase/functions/deflect`, which logs one JSON line per mission, including how long the simulation took:
-
-```bash
-docker logs -f supabase_edge_runtime_usacs-f26-supabase-workshop
-```
-
-On a hosted project the same thing is `npx supabase logs --remote` (it opens an interactive viewer; `npx supabase logs sources --remote` lists what you can filter by).
-
-## 17. Keep your data
-
-The free plan doesn't give you downloadable backups. The CLI does:
+## 16. Keep your data
 
 ```bash
 npx supabase db dump --data-only -f backup.sql
 ```
 
-Add `--remote` to dump a hosted project.
+Add `--remote` to dump a hosted project. The free plan doesn't give you downloadable backups; the CLI does.
 
-## 18. Ship it
-
-Everything you just did locally goes to a free hosted project with five commands:
+## 17. Ship it
 
 ```bash
 npx supabase login
 npx supabase link --project-ref <your-project-ref>
 npx supabase db push --include-seed
-npx supabase functions deploy deflect
 npx supabase config push
 ```
 
-`db push` runs your migrations there, `--include-seed` loads the asteroid catalog, `functions deploy` uploads the Edge Function (and the shared physics with it), `config push` copies the auth settings from `supabase/config.toml` (anonymous sign-ins on, higher rate limit). Change `site_url` in `config.toml` to wherever you deploy the frontend before you push it.
+`db push` runs your migrations there and `--include-seed` lists the five companies. `config push` copies the auth settings (anonymous sign-ins on, higher rate limit). Change `site_url` in `config.toml` to wherever you deploy the frontend first.
 
-When you're done for the night:
+Closing bell:
 
 ```bash
-npx supabase db query --remote "update mission set open = false"
+npx supabase db query --remote "update market set open = false"
 npx supabase stop
 ```
