@@ -273,6 +273,9 @@ isOneToOne: false
 "place_order":
 { Args: { "p_kind": string,"p_limit_cents"?: number,"p_qty": number,"p_side": string,"p_symbol": string }; Returns: Json
                            },
+"quotes":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "reject":
 { Args: { "p_detail"?: Json,"p_reason": string,"p_symbol": string,"p_trader": string }; Returns: Json
                            }
