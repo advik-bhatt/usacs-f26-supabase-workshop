@@ -6,7 +6,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(12);
+select plan(17);
 
 -- two cooks
 insert into auth.users (id, email) values
@@ -75,10 +75,20 @@ select throws_ok(
 );
 
 select throws_ok(
-  $$ select public.finish_ticket('11111111-1111-1111-1111-111111111111', 1, true, 15, 350) $$,
+  $$ select public.finish_ticket('11111111-1111-1111-1111-111111111111', 1, true, 15, 350, 'S', '{cheese}') $$,
   '42501', null,
   'Ana cannot call finish_ticket; only the Edge Function can'
 );
+
+-- the market
+select is((select count(*)::int from public.wallets), 1, 'Ana sees exactly one wallet: her own');
+select is((select cash_cents from public.wallets), 2000, 'and it holds her $20 allowance, opened by the trigger');
+select throws_ok($$ update public.wallets set cash_cents = 999999 $$, '42501', null,
+  'Ana cannot give herself money (no grant)');
+select throws_ok($$ update public.toppings set price_cents = 1 $$, '42501', null,
+  'Ana cannot crash the price of pepperoni (no grant)');
+select throws_ok($$ select public.stimulus(100000) $$, '42501', null,
+  'Ana cannot print money; only the host can');
 
 select isnt_empty(
   'select * from public.grab_ticket()',
