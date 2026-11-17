@@ -89,6 +89,10 @@ export default {
     if (error) {
       return Response.json({ error: error.message, hint: error.hint }, { status: 409 });
     }
+    if (data?.error) {
+      // refused but recorded (too late)
+      return Response.json(data, { status: 409 });
+    }
 
     console.log(JSON.stringify({ event: "flown", target: targetId, crew: crewId, simMs, ...data, missKm: Math.round(outcome.missKm) }));
     return Response.json({ ...data, ...outcome, simMs });

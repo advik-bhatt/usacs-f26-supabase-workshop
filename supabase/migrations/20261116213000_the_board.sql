@@ -184,10 +184,12 @@ begin
   if t.status <> 'working'
      or t.crew_id is distinct from p_crew
      or t.claimed_at < now() - make_interval(secs => m.work_seconds) then
+    -- Return the refusal instead of raising it: an exception would roll back
+    -- this log_event too, and we want "late" in the event log.
     perform public.log_event('late', t.id, p_crew, jsonb_build_object('status_now', t.status));
-    raise exception 'too slow, target #% went back on the board', p_target
-      using errcode = 'P0001',
-            hint = 'you have mission.work_seconds before the queue hands it to someone else';
+    return jsonb_build_object(
+      'error', format('too slow, target #%s went back on the board', p_target),
+      'hint', 'you have mission.work_seconds before the queue hands it to someone else');
   end if;
 
   secs := round(extract(epoch from now() - t.claimed_at)::numeric, 1);
