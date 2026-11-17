@@ -37,6 +37,22 @@ This is a real continuous double auction, the mechanism every major stock exchan
 
 The pgTAP tests check the economics, not just the permissions: trades happen at the resting price, reserved cash can't be spent twice, cancelling releases it, and after every test no money or shares have been created or destroyed.
 
+## Other programs in this repo
+
+Each branch is a different game built on the same Supabase ideas. Same setup, just check out the branch first.
+
+| Branch | What it is |
+| --- | --- |
+| `main` | **Deflect**: planetary defense drill with real NASA/JPL asteroids and an orbital mechanics simulator |
+| `dinner-rush-market` | **Dinner Rush, market edition**: a multiplayer pizza kitchen where every cook has a wallet and ingredient prices rise with demand |
+| `trading-floor` | **Trading Floor**: a stock exchange with a real order book and matching engine, where the room is the market |
+
+```bash
+git checkout trading-floor     # then: npx supabase db reset && npx supabase stop && npx supabase start
+```
+
+Switching branches changes the migrations, so reset the database, and restart the stack so it picks up that branch's Edge Functions.
+
 ## Run it on your laptop
 
 You need Node 22+, git, and Docker (Docker Desktop on Mac/Windows).
