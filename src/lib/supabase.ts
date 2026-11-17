@@ -21,11 +21,25 @@ export const supabase = createClient<Database>(
 );
 
 type Tables = Database["public"]["Tables"];
-export type Target = Tables["targets"]["Row"];
-export type AsteroidRow = Tables["asteroids"]["Row"];
-export type Crew = Tables["crew"]["Row"];
-export type Mission = Tables["mission"]["Row"];
-export type MissionEvent = Tables["events"]["Row"];
+export type Trader = Tables["traders"]["Row"];
+export type Stock = Tables["stocks"]["Row"];
+export type Order = Tables["orders"]["Row"];
+export type Trade = Tables["trades"]["Row"];
+export type Market = Tables["market"]["Row"];
+export type News = Tables["news"]["Row"];
+export type FloorEvent = Tables["events"]["Row"];
+
+export type Level = { price_cents: number; qty: number; orders: number };
+export type Book = { bids: Level[]; asks: Level[] };
+
+// What place_order() and cancel_order() send back.
+export type OrderResult = {
+  error?: string;
+  order?: Order;
+  filled?: number;
+  avg_cents?: number | null;
+  spent_cents?: number;
+};
 
 // Sign in as a guest if we aren't signed in yet. Anonymous users are real
 // users with a real id; they just haven't told us who they are.
@@ -36,3 +50,17 @@ export async function ensureSession() {
   if (error) throw error;
   return anon.session!;
 }
+
+export const usd = (cents: number | null | undefined) =>
+  cents == null
+    ? "-"
+    : `$${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+export const pct = (now: number, then: number) => {
+  const p = ((now - then) / then) * 100;
+  if (Math.abs(p) < 0.05) return "0.0%";
+  return `${p > 0 ? "+" : ""}${p.toFixed(1)}%`;
+};
+
+export const isHalted = (s: Pick<Stock, "halted_until">) =>
+  s.halted_until != null && new Date(s.halted_until).getTime() > Date.now();

@@ -23,47 +23,193 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "asteroids": {
+            "accounts": {
                   Row: {
-                    "a": number,"ca_date": string,"ca_dist_au": number,"ca_jd": number,"des": string,"diameter_km": number,"diameter_measured": boolean,"e": number,"epoch": number,"fetched_at": string,"h": number,"i": number,"ma": number,"name": string,"om": number,"pha": boolean,"v_inf_kms": number,"w": number
+                    "cash_cents": number,"reserved_cents": number,"trader_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "a": number,"ca_date": string,"ca_dist_au": number,"ca_jd": number,"des": string,"diameter_km": number,"diameter_measured"?: boolean,"e": number,"epoch": number,"fetched_at"?: string,"h": number,"i": number,"ma": number,"name": string,"om": number,"pha"?: boolean,"v_inf_kms": number,"w": number
+                    "cash_cents": number,"reserved_cents"?: number,"trader_id": string
                   }
                   Update: {
-                    "a"?: number,"ca_date"?: string,"ca_dist_au"?: number,"ca_jd"?: number,"des"?: string,"diameter_km"?: number,"diameter_measured"?: boolean,"e"?: number,"epoch"?: number,"fetched_at"?: string,"h"?: number,"i"?: number,"ma"?: number,"name"?: string,"om"?: number,"pha"?: boolean,"v_inf_kms"?: number,"w"?: number
+                    "cash_cents"?: number,"reserved_cents"?: number,"trader_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "accounts_trader_id_fkey"
+      columns: ["trader_id"]
+isOneToOne: true
+      referencedRelation: "traders"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"events": {
+                  Row: {
+                    "at": string,"detail": NonNullable<Json>,"id": number,"kind": string,"symbol": string | null,"trader_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "at"?: string,"detail"?: NonNullable<Json>,"id"?: never,"kind": string,"symbol"?: string | null,"trader_id"?: string | null
+                  }
+                  Update: {
+                    "at"?: string,"detail"?: NonNullable<Json>,"id"?: never,"kind"?: string,"symbol"?: string | null,"trader_id"?: string | null
                   }
                   Relationships: [
                     
                   ]
-                },"credits": {
+                },"fills": {
                   Row: {
-                    "amount": number,"created_at": string,"crew_id": string,"id": number,"target_id": number | null
+                    "at": string,"id": number,"order_id": number,"price_cents": number,"qty": number,"side": string,"symbol": string,"trade_id": number,"trader_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "amount": number,"created_at"?: string,"crew_id": string,"id"?: never,"target_id"?: number | null
+                    "at"?: string,"id"?: never,"order_id": number,"price_cents": number,"qty": number,"side": string,"symbol": string,"trade_id": number,"trader_id": string
                   }
                   Update: {
-                    "amount"?: number,"created_at"?: string,"crew_id"?: string,"id"?: never,"target_id"?: number | null
+                    "at"?: string,"id"?: never,"order_id"?: number,"price_cents"?: number,"qty"?: number,"side"?: string,"symbol"?: string,"trade_id"?: number,"trader_id"?: string
                   }
                   Relationships: [
                     {
-      foreignKeyName: "credits_crew_id_fkey"
-      columns: ["crew_id"]
+      foreignKeyName: "fills_order_id_fkey"
+      columns: ["order_id"]
 isOneToOne: false
-      referencedRelation: "crew"
+      referencedRelation: "orders"
       referencedColumns: ["id"]
     },{
-      foreignKeyName: "credits_target_id_fkey"
-      columns: ["target_id"]
+      foreignKeyName: "fills_trade_id_fkey"
+      columns: ["trade_id"]
 isOneToOne: false
-      referencedRelation: "targets"
+      referencedRelation: "trades"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "fills_trader_id_fkey"
+      columns: ["trader_id"]
+isOneToOne: false
+      referencedRelation: "traders"
       referencedColumns: ["id"]
     }
                   ]
-                },"crew": {
+                },"market": {
+                  Row: {
+                    "allowance_cents": number,"breaker_pct": number,"halt_seconds": number,"id": boolean,"open": boolean,"starting_shares": number,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "allowance_cents"?: number,"breaker_pct"?: number,"halt_seconds"?: number,"id"?: boolean,"open"?: boolean,"starting_shares"?: number,"updated_at"?: string
+                  }
+                  Update: {
+                    "allowance_cents"?: number,"breaker_pct"?: number,"halt_seconds"?: number,"id"?: boolean,"open"?: boolean,"starting_shares"?: number,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"news": {
+                  Row: {
+                    "at": string,"headline": string,"id": number,"mood": string,"symbol": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "at"?: string,"headline": string,"id"?: never,"mood"?: string,"symbol"?: string | null
+                  }
+                  Update: {
+                    "at"?: string,"headline"?: string,"id"?: never,"mood"?: string,"symbol"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "news_symbol_fkey"
+      columns: ["symbol"]
+isOneToOne: false
+      referencedRelation: "stocks"
+      referencedColumns: ["symbol"]
+    }
+                  ]
+                },"orders": {
+                  Row: {
+                    "created_at": string,"filled": number,"id": number,"kind": string,"limit_cents": number | null,"qty": number,"side": string,"status": string,"symbol": string,"trader_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"filled"?: number,"id"?: never,"kind": string,"limit_cents"?: number | null,"qty": number,"side": string,"status"?: string,"symbol": string,"trader_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"filled"?: number,"id"?: never,"kind"?: string,"limit_cents"?: number | null,"qty"?: number,"side"?: string,"status"?: string,"symbol"?: string,"trader_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "orders_symbol_fkey"
+      columns: ["symbol"]
+isOneToOne: false
+      referencedRelation: "stocks"
+      referencedColumns: ["symbol"]
+    },{
+      foreignKeyName: "orders_trader_id_fkey"
+      columns: ["trader_id"]
+isOneToOne: false
+      referencedRelation: "traders"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"positions": {
+                  Row: {
+                    "qty": number,"reserved": number,"symbol": string,"trader_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "qty": number,"reserved"?: number,"symbol": string,"trader_id": string
+                  }
+                  Update: {
+                    "qty"?: number,"reserved"?: number,"symbol"?: string,"trader_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "positions_symbol_fkey"
+      columns: ["symbol"]
+isOneToOne: false
+      referencedRelation: "stocks"
+      referencedColumns: ["symbol"]
+    },{
+      foreignKeyName: "positions_trader_id_fkey"
+      columns: ["trader_id"]
+isOneToOne: false
+      referencedRelation: "traders"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"price_samples": {
+                  Row: {
+                    "at": string,"last_cents": number,"symbol": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "at"?: string,"last_cents": number,"symbol": string
+                  }
+                  Update: {
+                    "at"?: string,"last_cents"?: number,"symbol"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "price_samples_symbol_fkey"
+      columns: ["symbol"]
+isOneToOne: false
+      referencedRelation: "stocks"
+      referencedColumns: ["symbol"]
+    }
+                  ]
+                },"stocks": {
+                  Row: {
+                    "blurb": string,"halted_until": string | null,"last_cents": number,"name": string,"open_cents": number,"symbol": string,"updated_at": string,"volume": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "blurb": string,"halted_until"?: string | null,"last_cents": number,"name": string,"open_cents": number,"symbol": string,"updated_at"?: string,"volume"?: number
+                  }
+                  Update: {
+                    "blurb"?: string,"halted_until"?: string | null,"last_cents"?: number,"name"?: string,"open_cents"?: number,"symbol"?: string,"updated_at"?: string,"volume"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"traders": {
                   Row: {
                     "id": string,"joined_at": string,"kind": string,"name": string
                   }
@@ -77,98 +223,24 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
-                },"deflections": {
+                },"trades": {
                   Row: {
-                    "capture_km": number,"crew_id": string,"direction": string,"dv_ms": number,"flown_at": string,"id": number,"lead_days": number,"mass_kg": number,"miss_km": number,"saved": boolean,"score": number,"seconds": number,"target_id": number
+                    "at": string,"id": number,"price_cents": number,"qty": number,"symbol": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "capture_km": number,"crew_id": string,"direction": string,"dv_ms": number,"flown_at"?: string,"id"?: never,"lead_days": number,"mass_kg": number,"miss_km": number,"saved": boolean,"score": number,"seconds": number,"target_id": number
+                    "at"?: string,"id"?: never,"price_cents": number,"qty": number,"symbol": string
                   }
                   Update: {
-                    "capture_km"?: number,"crew_id"?: string,"direction"?: string,"dv_ms"?: number,"flown_at"?: string,"id"?: never,"lead_days"?: number,"mass_kg"?: number,"miss_km"?: number,"saved"?: boolean,"score"?: number,"seconds"?: number,"target_id"?: number
+                    "at"?: string,"id"?: never,"price_cents"?: number,"qty"?: number,"symbol"?: string
                   }
                   Relationships: [
                     {
-      foreignKeyName: "deflections_crew_id_fkey"
-      columns: ["crew_id"]
+      foreignKeyName: "trades_symbol_fkey"
+      columns: ["symbol"]
 isOneToOne: false
-      referencedRelation: "crew"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "deflections_target_id_fkey"
-      columns: ["target_id"]
-isOneToOne: true
-      referencedRelation: "targets"
-      referencedColumns: ["id"]
-    }
-                  ]
-                },"events": {
-                  Row: {
-                    "at": string,"crew_id": string | null,"detail": NonNullable<Json>,"id": number,"kind": string,"target_id": number | null
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "at"?: string,"crew_id"?: string | null,"detail"?: NonNullable<Json>,"id"?: never,"kind": string,"target_id"?: number | null
-                  }
-                  Update: {
-                    "at"?: string,"crew_id"?: string | null,"detail"?: NonNullable<Json>,"id"?: never,"kind"?: string,"target_id"?: number | null
-                  }
-                  Relationships: [
-                    
-                  ]
-                },"mission": {
-                  Row: {
-                    "id": boolean,"open": boolean,"targets_per_tick": number,"updated_at": string,"window_seconds": number,"work_seconds": number
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "id"?: boolean,"open"?: boolean,"targets_per_tick"?: number,"updated_at"?: string,"window_seconds"?: number,"work_seconds"?: number
-                  }
-                  Update: {
-                    "id"?: boolean,"open"?: boolean,"targets_per_tick"?: number,"updated_at"?: string,"window_seconds"?: number,"work_seconds"?: number
-                  }
-                  Relationships: [
-                    
-                  ]
-                },"queue_samples": {
-                  Row: {
-                    "at": string,"oldest_seconds": number | null,"waiting": number,"working": number
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "at"?: string,"oldest_seconds"?: number | null,"waiting": number,"working": number
-                  }
-                  Update: {
-                    "at"?: string,"oldest_seconds"?: number | null,"waiting"?: number,"working"?: number
-                  }
-                  Relationships: [
-                    
-                  ]
-                },"targets": {
-                  Row: {
-                    "attempts": number,"claimed_at": string | null,"crew_id": string | null,"des": string,"done_at": string | null,"id": number,"msg_id": number | null,"posted_at": string,"status": string
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "attempts"?: number,"claimed_at"?: string | null,"crew_id"?: string | null,"des": string,"done_at"?: string | null,"id"?: never,"msg_id"?: number | null,"posted_at"?: string,"status"?: string
-                  }
-                  Update: {
-                    "attempts"?: number,"claimed_at"?: string | null,"crew_id"?: string | null,"des"?: string,"done_at"?: string | null,"id"?: never,"msg_id"?: number | null,"posted_at"?: string,"status"?: string
-                  }
-                  Relationships: [
-                    {
-      foreignKeyName: "targets_crew_id_fkey"
-      columns: ["crew_id"]
-isOneToOne: false
-      referencedRelation: "crew"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "targets_des_fkey"
-      columns: ["des"]
-isOneToOne: false
-      referencedRelation: "asteroids"
-      referencedColumns: ["des"]
+      referencedRelation: "stocks"
+      referencedColumns: ["symbol"]
     }
                   ]
                 }
@@ -177,44 +249,32 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "announce":
-{ Args: { "p_text": string }; Returns: undefined
+            "cancel_order":
+{ Args: { "p_order": number }; Returns: Json
                            },
-"claim_target":
-{ Args: Record<PropertyKey, never>; Returns: {
-              "attempts": number,
-"claimed_at": string | null,
-"crew_id": string | null,
-"des": string,
-"done_at": string | null,
-"id": number,
-"msg_id": number | null,
-"posted_at": string,
-"status": string
-            }[]
-                          SetofOptions: {
-        from: "*"
-        to: "targets"
-        isOneToOne: false
-        isSetofReturn: true
-      } },
-"control_stats":
+"floor_stats":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
-"finish_target":
-{ Args: { "p_capture_km": number,"p_crew": string,"p_direction": string,"p_dv_ms": number,"p_lead_days": number,"p_mass_kg": number,"p_miss_km": number,"p_saved": boolean,"p_score": number,"p_target": number }; Returns: Json
-                           },
-"jd_now":
-{ Args: Record<PropertyKey, never>; Returns: number
-                           },
 "log_event":
-{ Args: { "p_crew"?: string,"p_detail"?: Json,"p_kind": string,"p_target"?: number }; Returns: undefined
+{ Args: { "p_detail"?: Json,"p_kind": string,"p_symbol"?: string,"p_trader"?: string }; Returns: undefined
                            },
-"mission_tick":
+"market_tick":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },
-"post_targets":
-{ Args: { "p_count"?: number }; Returns: number
+"new_session":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"news":
+{ Args: { "p_headline": string,"p_mood"?: string,"p_symbol": string }; Returns: number
+                           },
+"order_book":
+{ Args: { "p_depth"?: number,"p_symbol": string }; Returns: Json
+                           },
+"place_order":
+{ Args: { "p_kind": string,"p_limit_cents"?: number,"p_qty": number,"p_side": string,"p_symbol": string }; Returns: Json
+                           },
+"reject":
+{ Args: { "p_detail"?: Json,"p_reason": string,"p_symbol": string,"p_trader": string }; Returns: Json
                            }
           }
           Enums: {

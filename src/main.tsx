@@ -1,7 +1,7 @@
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Console } from "./pages/Console";
-import { MissionControl } from "./pages/MissionControl";
+import { TraderApp } from "./pages/Trader";
+import { Floor } from "./pages/Floor";
 import "./styles.css";
 
 function useHash() {
@@ -16,8 +16,8 @@ function useHash() {
 
 function App() {
   const hash = useHash();
-  // #/control is the big screen for the projector; everything else is the phone console
-  return hash.startsWith("#/control") ? <MissionControl /> : <Console />;
+  // #/floor is the big screen for the projector; everything else is your phone
+  return hash.startsWith("#/floor") ? <Floor /> : <TraderApp />;
 }
 
 createRoot(document.getElementById("root")!).render(
