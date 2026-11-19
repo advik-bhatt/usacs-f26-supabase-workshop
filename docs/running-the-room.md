@@ -13,7 +13,7 @@ Notes for whoever is presenting. The room plays on a hosted free project, you dr
    npx supabase login
    npx supabase link --project-ref <ref>
    npx supabase db push --include-seed
-   npx supabase functions deploy deflect
+   npx supabase functions deploy
    npx supabase config push
    ```
 
@@ -65,7 +65,9 @@ The dump is everyone's missions. It makes a good real dataset for the December o
 
 ## If something goes wrong
 
+- **Magic links or reset emails don't arrive.** The hosted project's built-in email sender only sends a handful an hour. Tell people to play as a guest or use email and password; set up `[auth.email.smtp]` if you need more.
+
 - **Nobody can join.** Anonymous sign-ins are off on the hosted project. Run `npx supabase config push`, or turn them on under Authentication → Sign In / Providers.
-- **Launch fails for everyone.** The Edge Function isn't deployed: `npx supabase functions deploy deflect`.
+- **Launch fails for everyone.** The Edge Function isn't deployed: `npx supabase functions deploy`.
 - **The board stays empty.** Either the mission is closed (`select open from mission`), the cron job is gone (`select * from cron.job`), or every asteroid's close approach has passed (`npm run nasa:fetch`, then `db push --include-seed`).
 - **Mission control is frozen.** It polls every 2 seconds, so a refresh fixes it. Realtime allows 200 connections on the free plan; a big room plus bots can get close.
