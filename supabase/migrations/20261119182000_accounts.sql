@@ -6,12 +6,12 @@
 
 -- Your picture's path in Storage, e.g. 'a1b2.../1700000000.webp'. The check
 -- makes sure it points into your own folder.
-alter table public.crew
+alter table public.players
   add column avatar_path text
   check (avatar_path is null or avatar_path like id::text || '/%');
 
 -- you could already rename yourself; now you can set your picture too
-grant update (name, avatar_path) on public.crew to authenticated;
+grant update (name, avatar_path) on public.players to authenticated;
 
 -- The bucket. Public means anyone with the URL can *see* a picture, which is
 -- what a leaderboard needs. Writing is still governed by the policies below.

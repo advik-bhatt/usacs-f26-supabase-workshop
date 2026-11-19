@@ -12,7 +12,7 @@ insert into auth.users (id, email) values
   ('11111111-1111-1111-1111-111111111111', 'ana@example.com'),
   ('22222222-2222-2222-2222-222222222222', 'ben@example.com');
 
-insert into public.crew (id, name) values
+insert into public.players (id, name) values
   ('11111111-1111-1111-1111-111111111111', 'Ana'),
   ('22222222-2222-2222-2222-222222222222', 'Ben');
 
@@ -43,22 +43,22 @@ select is(
 );
 
 select lives_ok(
-  $$ update public.crew set avatar_path = '11111111-1111-1111-1111-111111111111/me.webp'
+  $$ update public.players set avatar_path = '11111111-1111-1111-1111-111111111111/me.webp'
      where id = '11111111-1111-1111-1111-111111111111' $$,
   'Ana can point her profile at her picture'
 );
 
 select throws_ok(
-  $$ update public.crew set avatar_path = '22222222-2222-2222-2222-222222222222/ben.webp'
+  $$ update public.players set avatar_path = '22222222-2222-2222-2222-222222222222/ben.webp'
      where id = '11111111-1111-1111-1111-111111111111' $$,
   '23514', null,
   'but not at a picture in someone else''s folder'
 );
 
 -- RLS turns an update of someone else's row into an update of zero rows
-update public.crew set name = 'Hacked' where id = '22222222-2222-2222-2222-222222222222';
+update public.players set name = 'Hacked' where id = '22222222-2222-2222-2222-222222222222';
 select is(
-  (select name from public.crew where id = '22222222-2222-2222-2222-222222222222'),
+  (select name from public.players where id = '22222222-2222-2222-2222-222222222222'),
   'Ben',
   'Ana renaming Ben changes nothing (RLS filters the update to zero rows)'
 );
