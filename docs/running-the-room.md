@@ -12,6 +12,8 @@ Notes for whoever is presenting. The room trades on a hosted free project, you r
    npx supabase login
    npx supabase link --project-ref <ref>
    npx supabase db push --include-seed
+   npx supabase functions deploy
+npx supabase functions deploy
    npx supabase config push
    ```
 
@@ -61,6 +63,8 @@ npx supabase db dump --remote --data-only -f trading-night.sql
 The dump is every order and trade from the night, a good real dataset for the December observability workshop.
 
 ## If something goes wrong
+
+- **Magic links or reset emails don't arrive.** The hosted project's built-in email sender only sends a handful an hour. Tell people to play as a guest or use email and password; set up `[auth.email.smtp]` if you need more.
 
 - **Nobody can join.** Anonymous sign-ins are off on the hosted project. Run `npx supabase config push`, or turn them on under Authentication → Sign In / Providers.
 - **Orders bounce with "the market is closed".** `select open from market`, then open it.

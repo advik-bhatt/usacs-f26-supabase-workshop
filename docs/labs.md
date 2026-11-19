@@ -232,6 +232,7 @@ Add `--remote` to dump a hosted project. The free plan doesn't give you download
 npx supabase login
 npx supabase link --project-ref <your-project-ref>
 npx supabase db push --include-seed
+npx supabase functions deploy
 npx supabase config push
 ```
 
@@ -242,4 +243,59 @@ Closing bell:
 ```bash
 npx supabase db query --remote "update market set open = false"
 npx supabase stop
+```
+
+---
+
+# Account labs
+
+## A1. Every account is a row
+
+Sign up on your phone (or play as a guest), then:
+
+```bash
+npx supabase db query "select id, email, is_anonymous, created_at from auth.users order by created_at desc limit 5"
+```
+
+Guests have no email and `is_anonymous = true`. Your game profile is a separate row in `public.traders` with the same `id`.
+
+## A2. Emails without an inbox
+
+Tap **Email link** on the sign-in screen, then open Mailpit at http://127.0.0.1:54324. The sign-in link is there. Click it and you're in. **Forgot your password?** works the same way and brings you to a "Set a new password" screen.
+
+## A3. Turn a guest into an account
+
+Play as a guest, open **Account**, and fill in **Save your progress**. Run the query from A1 again: same `id`, now with an email, and `is_anonymous` is `false`. Nothing moved, so nothing was lost.
+
+## A4. Pictures are files and rows
+
+Add a picture in **Account**, then:
+
+```bash
+npx supabase storage ls ss:///avatars/ --experimental
+npx supabase db query "select name, metadata->>'size' as bytes, created_at from storage.objects where bucket_id = 'avatars'"
+```
+
+The first is the CLI's view of the bucket; the second shows that every file is a row in `storage.objects`. Who can write where is just RLS:
+
+```bash
+npx supabase db query "select policyname, cmd from pg_policies where tablename = 'objects'"
+```
+
+## A5. Delete an account
+
+In **Account**, tap **Delete my account**. Then check that the user, their profile and their picture are all gone:
+
+```bash
+npx supabase db query "select count(*) from auth.users"
+npx supabase storage ls ss:///avatars/ --experimental
+docker logs supabase_edge_runtime_usacs-f26-supabase-workshop 2>&1 | grep account_deleted
+```
+
+## A6. Test it
+
+`supabase/tests/accounts.test.sql` checks the Storage rules the same way the game's tests check the tables: Ana can upload into her own folder, not Ben's, and can't point her profile at Ben's picture.
+
+```bash
+npx supabase test db
 ```
