@@ -4,6 +4,7 @@ import { DepthChart, FlowChart, type DepthPoint, type FlowPoint } from "../compo
 import { OrbitView } from "../components/OrbitView";
 import { jdNow, type Elements } from "../../supabase/functions/_shared/orbit.ts";
 import { days, kg, km, size } from "../lib/format";
+import { Avatar } from "../components/Avatar";
 
 // The big screen: everything the team is doing, live, straight out of Postgres.
 
@@ -39,7 +40,9 @@ export function MissionControl() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [feed, setFeed] = useState<MissionEvent[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
-  const [online, setOnline] = useState<{ name: string; kind: string }[]>([]);
+  // the leaderboard comes back with names only, so look pictures up by name
+  const [pictures, setPictures] = useState<Record<string, string | null>>({});
+  const [online, setOnline] = useState<{ name: string; kind: string; avatar_path?: string | null }[]>([]);
   const [announcement, setAnnouncement] = useState<string | null>(null);
   const [cheers, setCheers] = useState<Cheer[]>([]);
   const [trace, setTrace] = useState<number | null>(null);
@@ -53,8 +56,9 @@ export function MissionControl() {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     async function loadNames() {
-      const { data } = await supabase.from("crew").select("id, name");
+      const { data } = await supabase.from("crew").select("id, name, avatar_path");
       setNames(Object.fromEntries((data ?? []).map((c) => [c.id, c.name])));
+      setPictures(Object.fromEntries((data ?? []).map((c) => [c.name, c.avatar_path])));
     }
 
     async function poll() {
@@ -99,7 +103,7 @@ export function MissionControl() {
           setTimeout(() => setCheers((cs) => cs.filter((x) => x.id !== c.id)), 3000);
         })
         .on("presence", { event: "sync" }, () => {
-          const state = channel!.presenceState<{ name: string; kind: string }>();
+          const state = channel!.presenceState<{ name: string; kind: string; avatar_path?: string | null }>();
           setOnline(Object.values(state).map((metas) => metas[0]));
         })
         .subscribe();
@@ -179,7 +183,7 @@ export function MissionControl() {
             <tbody>
               {stats.leaderboard.map((l, i) => (
                 <tr key={l.name + i}>
-                  <td>{l.kind === "bot" ? "🤖 " : ""}{l.name}</td>
+                  <td><Avatar name={l.name} path={pictures[l.name]} size={20} /> {l.kind === "bot" ? "🤖 " : ""}{l.name}</td>
                   <td>{l.score}</td>
                   <td>{l.saves}/{l.missions}</td>
                   <td>{l.lightest_save_kg ? kg(l.lightest_save_kg) : "–"}</td>
@@ -257,7 +261,7 @@ export function MissionControl() {
           <h2>On the team</h2>
           <p className="small">
             {online.map((o, i) => (
-              <span key={i} className="pill">{o.kind === "bot" ? "🤖 " : ""}{o.name}</span>
+              <span key={i} className="pill"><Avatar name={o.name} path={o.avatar_path} size={18} /> {o.kind === "bot" ? "🤖 " : ""}{o.name}</span>
             ))}
           </p>
           <p className="small muted">

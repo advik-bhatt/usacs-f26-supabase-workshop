@@ -11,6 +11,10 @@ import {
 import { simulate, asteroidMassKg, jdNow, type Direction, type Outcome } from "../../supabase/functions/_shared/orbit.ts";
 import { OrbitView, BPlane } from "../components/OrbitView";
 import { Cheats } from "../components/Cheats";
+import { AuthGate, NewPassword } from "../components/AuthGate";
+import { Account } from "../components/Account";
+import { Avatar } from "../components/Avatar";
+import type { Session } from "@supabase/supabase-js";
 import { days, kg, km, lunar, size, speed, AU_KM } from "../lib/format";
 
 type Note = { tone: "good" | "bad" | "info"; text: string };
@@ -20,24 +24,43 @@ const MAX_MASS = 1_000_000;
 const MAX_LEAD = 3650;
 
 export function Console() {
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [me, setMe] = useState<Crew | null>(null);
-  const [checking, setChecking] = useState(true);
+  const [loadingMe, setLoadingMe] = useState(true);
+  const [recovering, setRecovering] = useState(false);
 
-  // Already signed up on this device? Then skip the name screen.
+  // Follow the session: sign-in, sign-out, magic links and reset links all
+  // land here. Keep this callback to setState only; calling Supabase from
+  // inside it can deadlock the auth client.
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        const { data: crew } = await supabase.from("crew").select("*").eq("id", data.session.user.id).maybeSingle();
-        setMe(crew);
-      }
-      setChecking(false);
-    })();
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === "PASSWORD_RECOVERY") setRecovering(true);
+      setSession(s);
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
 
-  if (checking) return <div className="center muted">Connecting…</div>;
+  // Signed in? Then find your player row (or pick a name to make one).
+  const uid = session?.user.id;
+  useEffect(() => {
+    if (!uid) {
+      setMe(null);
+      setLoadingMe(false);
+      return;
+    }
+    setLoadingMe(true);
+    supabase.from("crew").select("*").eq("id", uid).maybeSingle().then(({ data }) => {
+      setMe(data);
+      setLoadingMe(false);
+    });
+  }, [uid]);
+
+  if (session === undefined || (uid && loadingMe)) return <div className="center muted">Connecting…</div>;
+  if (recovering) return <NewPassword onDone={() => setRecovering(false)} />;
+  if (!session) return <AuthGate title="☄️ Deflect" blurb="Real asteroids, real orbits, from NASA/JPL. Each one is a drill: assume it's going to hit Earth, and design a mission that pushes it clear." />;
   if (!me) return <SignUp onDone={setMe} />;
-  return <Desk me={me} onLeave={() => setMe(null)} />;
+  return <Desk me={me} onMe={setMe} onLeave={() => setMe(null)} />;
 }
 
 function SignUp({ onDone }: { onDone: (c: Crew) => void }) {
@@ -78,13 +101,14 @@ function SignUp({ onDone }: { onDone: (c: Crew) => void }) {
       </form>
       {error && <p className="bad">{error}</p>}
       <p className="small muted">
-        You'll be signed in as a guest (<code>signInAnonymously()</code>). No email needed.
+        This is the name everyone sees on the big screen. You can change it, and add a picture, any time.
       </p>
     </main>
   );
 }
 
-function Desk({ me, onLeave }: { me: Crew; onLeave: () => void }) {
+function Desk({ me, onMe, onLeave }: { me: Crew; onMe: (m: Crew) => void; onLeave: () => void }) {
+  const [showAccount, setShowAccount] = useState(false);
   const [mission, setMission] = useState<Mission | null>(null);
   const [target, setTarget] = useState<Target | null>(null);
   const [rock, setRock] = useState<AsteroidRow | null>(null);
@@ -130,7 +154,7 @@ function Desk({ me, onLeave }: { me: Crew; onLeave: () => void }) {
       })
       .on("presence", { event: "sync" }, () => setOnline(Object.keys(channel.presenceState()).length))
       .subscribe((status) => {
-        if (status === "SUBSCRIBED") channel.track({ name: me.name, kind: me.kind });
+        if (status === "SUBSCRIBED") channel.track({ name: me.name, kind: me.kind, avatar_path: me.avatar_path });
       });
     channelRef.current = channel;
 
@@ -235,7 +259,9 @@ function Desk({ me, onLeave }: { me: Crew; onLeave: () => void }) {
     <main className="console">
       <header>
         <div>
-          <strong>{me.name}</strong>
+          <button className="me" onClick={() => setShowAccount((v) => !v)} title="Your account">
+            <Avatar name={me.name} path={me.avatar_path} size={26} /> <strong>{me.name}</strong>
+          </button>
           <span className="muted"> · {online} on the team</span>
         </div>
         <div className="stats">
@@ -244,6 +270,23 @@ function Desk({ me, onLeave }: { me: Crew; onLeave: () => void }) {
           <span title="Only you can see this. RLS.">{(mine.credits / 1000).toLocaleString()}k credits 🔒</span>
         </div>
       </header>
+
+      {showAccount && (
+        <Account
+          me={me}
+          onRename={async (name) => {
+            const { data, error } = await supabase.from("crew").update({ name }).eq("id", me.id).select().single();
+            if (data) onMe(data);
+            return error?.message ?? null;
+          }}
+          onAvatar={async (avatar_path) => {
+            const { data, error } = await supabase.from("crew").update({ avatar_path }).eq("id", me.id).select().single();
+            if (data) onMe(data);
+            return error?.message ?? null;
+          }}
+          onSignedOut={onLeave}
+        />
+      )}
 
       {announcement && <div className="announce">📡 {announcement}</div>}
       {mission && !mission.open && <div className="note info">Mission control hasn't opened the board yet.</div>}
@@ -351,6 +394,7 @@ function Desk({ me, onLeave }: { me: Crew; onLeave: () => void }) {
 
       <footer>
         <button className="link small" onClick={leave}>Sign out</button>
+        <button className="link small" onClick={() => setShowAccount((v) => !v)}>Account</button>
         <a className="small muted" href="#/control">Mission control →</a>
       </footer>
     </main>
