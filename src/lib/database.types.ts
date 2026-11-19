@@ -23,152 +23,178 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "asteroids": {
+            "events": {
                   Row: {
-                    "a": number,"ca_date": string,"ca_dist_au": number,"ca_jd": number,"des": string,"diameter_km": number,"diameter_measured": boolean,"e": number,"epoch": number,"fetched_at": string,"h": number,"i": number,"ma": number,"name": string,"om": number,"pha": boolean,"v_inf_kms": number,"w": number
+                    "at": string,"detail": NonNullable<Json>,"id": number,"kind": string,"player_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "a": number,"ca_date": string,"ca_dist_au": number,"ca_jd": number,"des": string,"diameter_km": number,"diameter_measured"?: boolean,"e": number,"epoch": number,"fetched_at"?: string,"h": number,"i": number,"ma": number,"name": string,"om": number,"pha"?: boolean,"v_inf_kms": number,"w": number
+                    "at"?: string,"detail"?: NonNullable<Json>,"id"?: never,"kind": string,"player_id"?: string | null
                   }
                   Update: {
-                    "a"?: number,"ca_date"?: string,"ca_dist_au"?: number,"ca_jd"?: number,"des"?: string,"diameter_km"?: number,"diameter_measured"?: boolean,"e"?: number,"epoch"?: number,"fetched_at"?: string,"h"?: number,"i"?: number,"ma"?: number,"name"?: string,"om"?: number,"pha"?: boolean,"v_inf_kms"?: number,"w"?: number
+                    "at"?: string,"detail"?: NonNullable<Json>,"id"?: never,"kind"?: string,"player_id"?: string | null
                   }
                   Relationships: [
                     
                   ]
-                },"credits": {
+                },"game": {
                   Row: {
-                    "amount": number,"created_at": string,"crew_id": string,"id": number,"target_id": number | null
+                    "allowance_cents": number,"id": boolean,"open": boolean,"par_base_s": number,"par_per_item_s": number,"par_per_step_s": number,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "amount": number,"created_at"?: string,"crew_id": string,"id"?: never,"target_id"?: number | null
+                    "allowance_cents"?: number,"id"?: boolean,"open"?: boolean,"par_base_s"?: number,"par_per_item_s"?: number,"par_per_step_s"?: number,"updated_at"?: string
                   }
                   Update: {
-                    "amount"?: number,"created_at"?: string,"crew_id"?: string,"id"?: never,"target_id"?: number | null
-                  }
-                  Relationships: [
-                    {
-      foreignKeyName: "credits_crew_id_fkey"
-      columns: ["crew_id"]
-isOneToOne: false
-      referencedRelation: "crew"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "credits_target_id_fkey"
-      columns: ["target_id"]
-isOneToOne: false
-      referencedRelation: "targets"
-      referencedColumns: ["id"]
-    }
-                  ]
-                },"crew": {
-                  Row: {
-                    "avatar_path": string | null,"id": string,"joined_at": string,"kind": string,"name": string
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "avatar_path"?: string | null,"id"?: string,"joined_at"?: string,"kind"?: string,"name": string
-                  }
-                  Update: {
-                    "avatar_path"?: string | null,"id"?: string,"joined_at"?: string,"kind"?: string,"name"?: string
+                    "allowance_cents"?: number,"id"?: boolean,"open"?: boolean,"par_base_s"?: number,"par_per_item_s"?: number,"par_per_step_s"?: number,"updated_at"?: string
                   }
                   Relationships: [
                     
                   ]
-                },"deflections": {
+                },"ingredients": {
                   Row: {
-                    "capture_km": number,"crew_id": string,"direction": string,"dv_ms": number,"flown_at": string,"id": number,"lead_days": number,"mass_kg": number,"miss_km": number,"saved": boolean,"score": number,"seconds": number,"target_id": number
+                    "name": string,"price_cents": number,"slug": string,"x": number,"y": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "capture_km": number,"crew_id": string,"direction": string,"dv_ms": number,"flown_at"?: string,"id"?: never,"lead_days": number,"mass_kg": number,"miss_km": number,"saved": boolean,"score": number,"seconds": number,"target_id": number
+                    "name": string,"price_cents": number,"slug": string,"x": number,"y": number
                   }
                   Update: {
-                    "capture_km"?: number,"crew_id"?: string,"direction"?: string,"dv_ms"?: number,"flown_at"?: string,"id"?: never,"lead_days"?: number,"mass_kg"?: number,"miss_km"?: number,"saved"?: boolean,"score"?: number,"seconds"?: number,"target_id"?: number
+                    "name"?: string,"price_cents"?: number,"slug"?: string,"x"?: number,"y"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"player_state": {
+                  Row: {
+                    "location": string,"phase": string,"player_id": string,"run_id": number | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "location"?: string,"phase"?: string,"player_id": string,"run_id"?: number | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "location"?: string,"phase"?: string,"player_id"?: string,"run_id"?: number | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
-      foreignKeyName: "deflections_crew_id_fkey"
-      columns: ["crew_id"]
-isOneToOne: false
-      referencedRelation: "crew"
-      referencedColumns: ["id"]
-    },{
-      foreignKeyName: "deflections_target_id_fkey"
-      columns: ["target_id"]
+      foreignKeyName: "player_state_player_id_fkey"
+      columns: ["player_id"]
 isOneToOne: true
-      referencedRelation: "targets"
+      referencedRelation: "players"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "player_state_run_id_fkey"
+      columns: ["run_id"]
+isOneToOne: false
+      referencedRelation: "runs"
       referencedColumns: ["id"]
     }
                   ]
-                },"events": {
+                },"players": {
                   Row: {
-                    "at": string,"crew_id": string | null,"detail": NonNullable<Json>,"id": number,"kind": string,"target_id": number | null
+                    "avatar_path": string | null,"id": string,"joined_at": string,"kind": string,"name": string,"sprite": number,"xp": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "at"?: string,"crew_id"?: string | null,"detail"?: NonNullable<Json>,"id"?: never,"kind": string,"target_id"?: number | null
+                    "avatar_path"?: string | null,"id"?: string,"joined_at"?: string,"kind"?: string,"name": string,"sprite"?: number,"xp"?: number
                   }
                   Update: {
-                    "at"?: string,"crew_id"?: string | null,"detail"?: NonNullable<Json>,"id"?: never,"kind"?: string,"target_id"?: number | null
+                    "avatar_path"?: string | null,"id"?: string,"joined_at"?: string,"kind"?: string,"name"?: string,"sprite"?: number,"xp"?: number
                   }
                   Relationships: [
                     
                   ]
-                },"mission": {
+                },"purchases": {
                   Row: {
-                    "id": boolean,"open": boolean,"targets_per_tick": number,"updated_at": string,"window_seconds": number,"work_seconds": number
+                    "at": string,"id": number,"ingredient": string,"player_id": string,"price_cents": number,"run_id": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "id"?: boolean,"open"?: boolean,"targets_per_tick"?: number,"updated_at"?: string,"window_seconds"?: number,"work_seconds"?: number
+                    "at"?: string,"id"?: never,"ingredient": string,"player_id": string,"price_cents": number,"run_id": number
                   }
                   Update: {
-                    "id"?: boolean,"open"?: boolean,"targets_per_tick"?: number,"updated_at"?: string,"window_seconds"?: number,"work_seconds"?: number
-                  }
-                  Relationships: [
-                    
-                  ]
-                },"queue_samples": {
-                  Row: {
-                    "at": string,"oldest_seconds": number | null,"waiting": number,"working": number
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "at"?: string,"oldest_seconds"?: number | null,"waiting": number,"working": number
-                  }
-                  Update: {
-                    "at"?: string,"oldest_seconds"?: number | null,"waiting"?: number,"working"?: number
-                  }
-                  Relationships: [
-                    
-                  ]
-                },"targets": {
-                  Row: {
-                    "attempts": number,"claimed_at": string | null,"crew_id": string | null,"des": string,"done_at": string | null,"id": number,"msg_id": number | null,"posted_at": string,"status": string
-                  }
-                  ComputedFields: never
-                  Insert: {
-                    "attempts"?: number,"claimed_at"?: string | null,"crew_id"?: string | null,"des": string,"done_at"?: string | null,"id"?: never,"msg_id"?: number | null,"posted_at"?: string,"status"?: string
-                  }
-                  Update: {
-                    "attempts"?: number,"claimed_at"?: string | null,"crew_id"?: string | null,"des"?: string,"done_at"?: string | null,"id"?: never,"msg_id"?: number | null,"posted_at"?: string,"status"?: string
+                    "at"?: string,"id"?: never,"ingredient"?: string,"player_id"?: string,"price_cents"?: number,"run_id"?: number
                   }
                   Relationships: [
                     {
-      foreignKeyName: "targets_crew_id_fkey"
-      columns: ["crew_id"]
+      foreignKeyName: "purchases_ingredient_fkey"
+      columns: ["ingredient"]
 isOneToOne: false
-      referencedRelation: "crew"
+      referencedRelation: "ingredients"
+      referencedColumns: ["slug"]
+    },{
+      foreignKeyName: "purchases_player_id_fkey"
+      columns: ["player_id"]
+isOneToOne: false
+      referencedRelation: "players"
       referencedColumns: ["id"]
     },{
-      foreignKeyName: "targets_des_fkey"
-      columns: ["des"]
+      foreignKeyName: "purchases_run_id_fkey"
+      columns: ["run_id"]
 isOneToOne: false
-      referencedRelation: "asteroids"
-      referencedColumns: ["des"]
+      referencedRelation: "runs"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"recipe_ingredients": {
+                  Row: {
+                    "ingredient": string,"recipe": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "ingredient": string,"recipe": string
+                  }
+                  Update: {
+                    "ingredient"?: string,"recipe"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "recipe_ingredients_ingredient_fkey"
+      columns: ["ingredient"]
+isOneToOne: false
+      referencedRelation: "ingredients"
+      referencedColumns: ["slug"]
+    },{
+      foreignKeyName: "recipe_ingredients_recipe_fkey"
+      columns: ["recipe"]
+isOneToOne: false
+      referencedRelation: "recipes"
+      referencedColumns: ["slug"]
+    }
+                  ]
+                },"recipes": {
+                  Row: {
+                    "base_points": number,"name": string,"slug": string,"stars": number,"steps": (string)[]
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "base_points": number,"name": string,"slug": string,"stars": number,"steps": (string)[]
+                  }
+                  Update: {
+                    "base_points"?: number,"name"?: string,"slug"?: string,"stars"?: number,"steps"?: (string)[]
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"runs": {
+                  Row: {
+                    "budget_cents": number,"checkout_at": string | null,"finished_at": string | null,"id": number,"player_id": string,"rating": string | null,"recipes": (string)[],"result": Json | null,"score": number | null,"spent_cents": number,"started_at": string,"status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "budget_cents": number,"checkout_at"?: string | null,"finished_at"?: string | null,"id"?: never,"player_id": string,"rating"?: string | null,"recipes": (string)[],"result"?: Json | null,"score"?: number | null,"spent_cents"?: number,"started_at"?: string,"status"?: string
+                  }
+                  Update: {
+                    "budget_cents"?: number,"checkout_at"?: string | null,"finished_at"?: string | null,"id"?: never,"player_id"?: string,"rating"?: string | null,"recipes"?: (string)[],"result"?: Json | null,"score"?: number | null,"spent_cents"?: number,"started_at"?: string,"status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "runs_player_id_fkey"
+      columns: ["player_id"]
+isOneToOne: false
+      referencedRelation: "players"
+      referencedColumns: ["id"]
     }
                   ]
                 }
@@ -180,41 +206,35 @@ isOneToOne: false
             "announce":
 { Args: { "p_text": string }; Returns: undefined
                            },
-"claim_target":
-{ Args: Record<PropertyKey, never>; Returns: {
-              "attempts": number,
-"claimed_at": string | null,
-"crew_id": string | null,
-"des": string,
-"done_at": string | null,
-"id": number,
-"msg_id": number | null,
-"posted_at": string,
-"status": string
-            }[]
-                          SetofOptions: {
-        from: "*"
-        to: "targets"
-        isOneToOne: false
-        isSetofReturn: true
-      } },
-"control_stats":
-{ Args: Record<PropertyKey, never>; Returns: Json
-                           },
-"finish_target":
-{ Args: { "p_capture_km": number,"p_crew": string,"p_direction": string,"p_dv_ms": number,"p_lead_days": number,"p_mass_kg": number,"p_miss_km": number,"p_saved": boolean,"p_score": number,"p_target": number }; Returns: Json
-                           },
-"jd_now":
-{ Args: Record<PropertyKey, never>; Returns: number
-                           },
-"log_event":
-{ Args: { "p_crew"?: string,"p_detail"?: Json,"p_kind": string,"p_target"?: number }; Returns: undefined
-                           },
-"mission_tick":
+"back_to_menu":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },
-"post_targets":
-{ Args: { "p_count"?: number }; Returns: number
+"buy":
+{ Args: { "p_ingredient": string,"p_run": number }; Returns: Json
+                           },
+"cookable":
+{ Args: { "p_run": number }; Returns: (string)[]
+                           },
+"dashboard":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"finish_run":
+{ Args: { "p_accuracy": Json,"p_run": number }; Returns: Json
+                           },
+"head_home":
+{ Args: { "p_run": number }; Returns: Json
+                           },
+"log_event":
+{ Args: { "p_detail"?: Json,"p_kind": string,"p_player"?: string }; Returns: undefined
+                           },
+"menu_cost_cents":
+{ Args: { "p_recipes": (string)[] }; Returns: number
+                           },
+"start_run":
+{ Args: { "p_recipes": (string)[] }; Returns: Json
+                           },
+"tidy_up":
+{ Args: Record<PropertyKey, never>; Returns: undefined
                            }
           }
           Enums: {

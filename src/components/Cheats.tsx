@@ -1,121 +1,87 @@
 import { useState } from "react";
-import { FunctionsHttpError } from "@supabase/supabase-js";
-import { supabase, type Crew, type Target } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
+import type { Me, Run } from "../pages/Play";
 
-// Every one of these is a real request with your real session. None of them
-// work, and they fail in different ways. That's the lesson:
-//
+// Real requests with your real session, the same thing anyone could type into
+// devtools. None of them work, and each one fails in its own way:
 //   no grant      -> 42501 permission denied
-//   no policy     -> 42501 new row violates row-level security policy
-//   policy filter -> 200 OK, but only the rows you're allowed to see
-//   server check  -> the Edge Function ignores what you claim and does the math itself
+//   policy filter -> 200 OK, but only your own rows
+//   the game      -> start_run / buy / finish_run check it and say no (kindly)
 
 type Outcome = { code: string; message: string };
+const fail = (e: { code: string; message: string } | null): Outcome =>
+  e ? { code: e.code, message: e.message } : { code: "200", message: "it worked?!" };
 
-const fail = (error: { code: string; message: string } | null): Outcome =>
-  error ? { code: error.code, message: error.message } : { code: "200", message: "it worked?!" };
-
-export function Cheats({ me, target }: { me: Crew; target: Target | null }) {
+export function Cheats({ me, run }: { me: Me; run: Run | null }) {
   const [results, setResults] = useState<Record<string, Outcome>>({});
 
   const attacks: { id: string; label: string; how: string; run: () => Promise<Outcome> }[] = [
     {
-      id: "fake-save",
-      label: "Record a save without flying",
-      how: `supabase.from("deflections").insert({ saved: true, score: 9999, ... })`,
+      id: "more-money",
+      label: "Give myself $1,000 to spend",
+      how: `supabase.from("runs").update({ budget_cents: 100000 })`,
+      run: async () => fail((await supabase.from("runs").update({ budget_cents: 100000 }).eq("player_id", me.id)).error),
+    },
+    {
+      id: "free-turkey",
+      label: "Put a free turkey in my basket",
+      how: `supabase.from("purchases").insert({ ingredient: "turkey", price_cents: 0 })`,
       run: async () =>
         fail(
-          (
-            await supabase.from("deflections").insert({
-              target_id: target?.id ?? 1, crew_id: me.id, lead_days: 1, mass_kg: 1, direction: "prograde",
-              dv_ms: 1, miss_km: 1e9, capture_km: 1, saved: true, score: 9999, seconds: 0.1,
-            })
-          ).error,
+          (await supabase.from("purchases").insert({ run_id: run?.id ?? 1, player_id: me.id, ingredient: "turkey", price_cents: 0 }))
+            .error,
         ),
     },
     {
-      id: "lie-to-the-server",
-      label: "Tell the server it missed by a mile",
-      how: `functions.invoke("deflect", { body: { ..., miss_km: 99999999, saved: true } })`,
-      run: async () => {
-        if (!target) return { code: "-", message: "Take a target first, then try this one." };
-        const { data, error } = await supabase.functions.invoke("deflect", {
-          body: { target_id: target.id, lead_days: 1, mass_kg: 100, direction: "radial", miss_km: 99999999, saved: true },
-        });
-        if (error) {
-          const body = error instanceof FunctionsHttpError ? await error.context.json() : null;
-          return { code: String(error instanceof FunctionsHttpError ? error.context.status : "?"), message: body?.error ?? error.message };
-        }
-        return {
-          code: "ignored",
-          message: `The server ran the physics itself: ${data.status}, missed by ${Math.round(data.missKm).toLocaleString()} km. Your numbers were thrown away (and you just used up this target).`,
-        };
-      },
+      id: "set-score",
+      label: "Set my score to 99,999",
+      how: `supabase.from("runs").update({ score: 99999 })`,
+      run: async () => fail((await supabase.from("runs").update({ score: 99999 }).eq("player_id", me.id)).error),
     },
     {
-      id: "stop-targets",
-      label: "Stop new asteroids coming in",
-      how: `supabase.from("mission").update({ targets_per_tick: 0 })`,
-      run: async () => fail((await supabase.from("mission").update({ targets_per_tick: 0 }).eq("id", true)).error),
+      id: "skip-to-done",
+      label: "Jump straight to 'done' on the dashboard",
+      how: `supabase.from("player_state").update({ phase: "done" })`,
+      run: async () => fail((await supabase.from("player_state").update({ phase: "done" }).eq("player_id", me.id)).error),
     },
     {
-      id: "read-credits",
-      label: "Read everyone's credits",
-      how: `supabase.from("credits").select("*")`,
+      id: "peek",
+      label: "Peek in everyone's basket",
+      how: `supabase.from("purchases").select("*")`,
       run: async () => {
-        const { data, error } = await supabase.from("credits").select("crew_id, amount");
+        const { data, error } = await supabase.from("purchases").select("player_id");
         if (error) return { code: error.code, message: error.message };
-        const others = (data ?? []).filter((c) => c.crew_id !== me.id).length;
-        return {
-          code: "filtered",
-          message: `200 OK with ${data?.length ?? 0} rows, ${others} of them someone else's. The policy quietly dropped the rest.`,
-        };
+        const others = (data ?? []).filter((p) => p.player_id !== me.id).length;
+        return { code: "filtered", message: `200 OK with ${data?.length ?? 0} rows, ${others} of them someone else's.` };
       },
     },
     {
-      id: "skip-the-physics",
-      label: "Finish a target without flying",
-      how: `supabase.rpc("finish_target", { ... })`,
-      run: async () =>
-        fail(
-          (
-            await supabase.rpc("finish_target", {
-              p_crew: me.id, p_target: target?.id ?? 1, p_lead_days: 1, p_mass_kg: 1, p_direction: "prograde",
-              p_dv_ms: 1, p_miss_km: 1e9, p_capture_km: 1, p_saved: true, p_score: 999,
-            })
-          ).error,
-        ),
-    },
-    {
-      id: "impersonate",
-      label: "Join as somebody else",
-      how: `supabase.from("crew").insert({ id: someoneElse, ... })`,
-      run: async () => fail((await supabase.from("crew").insert({ id: crypto.randomUUID(), name: "Definitely Ana" })).error),
+      id: "instant-cook",
+      label: "Finish cooking instantly, perfectly",
+      how: `supabase.rpc("finish_run", { p_accuracy: { everything: 1 } })`,
+      run: async () => {
+        const { data } = await supabase.rpc("finish_run", { p_run: run?.id ?? 0, p_accuracy: { "roast-turkey": 1 } });
+        const r = data as { error?: string } | null;
+        return r?.error ? { code: "refused", message: r.error } : { code: "200", message: "That counted. Was it really you?" };
+      },
     },
   ];
 
   async function attempt(a: (typeof attacks)[number]) {
     const outcome = await a.run();
     setResults((r) => ({ ...r, [a.id]: outcome }));
-    // Tell mission control. This insert is allowed, but only for kind = 'blocked'
-    // and only with your own crew_id.
-    await supabase.from("events").insert({
-      kind: "blocked",
-      crew_id: me.id,
-      detail: { attack: a.id, code: outcome.code, message: outcome.message },
-    });
+    await supabase.from("events").insert({ kind: "blocked", player_id: me.id, detail: { attack: a.id, code: outcome.code } });
   }
 
   return (
-    <section className="cheats">
-      <p className="small muted">
-        These are real requests from your browser with your real session, the same thing anyone could type into
-        devtools. Watch mission control when you try them.
+    <section className="panel cheats">
+      <p className="small">
+        These are real requests with your real login, like typing into devtools. Watch the live dashboard when you try them.
       </p>
       {attacks.map((a) => (
         <div key={a.id} className="cheat">
-          <button onClick={() => attempt(a)}>{a.label}</button>
-          <code className="small">{a.how}</code>
+          <button className="pixel-btn" onClick={() => attempt(a)}>{a.label}</button>
+          <code>{a.how}</code>
           {results[a.id] && (
             <div className="small">
               <span className="code">{results[a.id].code}</span> {results[a.id].message}

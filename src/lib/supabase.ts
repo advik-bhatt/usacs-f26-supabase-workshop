@@ -20,13 +20,6 @@ export const supabase = createClient<Database>(
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
 );
 
-type Tables = Database["public"]["Tables"];
-export type Target = Tables["targets"]["Row"];
-export type AsteroidRow = Tables["asteroids"]["Row"];
-export type Crew = Tables["crew"]["Row"];
-export type Mission = Tables["mission"]["Row"];
-export type MissionEvent = Tables["events"]["Row"];
-
 // Sign in as a guest if we aren't signed in yet. Anonymous users are real
 // users with a real id; they just haven't told us who they are.
 export async function ensureSession() {
