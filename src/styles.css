@@ -191,3 +191,25 @@ tr.total td { font-weight: 700; border-bottom: 0; }
 .alerts li.halt { color: var(--red); }
 .alerts li.resume { color: var(--green); }
 .alerts li.blocked { color: var(--amber); }
+
+/* ---------- accounts ---------- */
+
+.avatar { display: inline-grid; place-items: center; border-radius: 50%; object-fit: cover; vertical-align: middle; flex: none; }
+.avatar.initials { background: #2b3440; color: var(--text); font-weight: 700; }
+button.me { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; }
+.auth-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 16px; }
+.auth-tabs button { padding: 8px 4px; font-size: 0.85rem; }
+.auth form input + input { margin-top: 0; }
+.account { display: grid; gap: 12px; }
+.account-row { display: flex; gap: 12px; align-items: center; }
+.account-who { min-width: 0; overflow-wrap: anywhere; }
+.account-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.account-form { display: grid; gap: 6px; }
+.account-form .inline { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+button.danger { background: var(--red); color: #1e0505; border: 0; font-weight: 700; }
+.pill .avatar { margin-right: 2px; }
+.account h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0; font-weight: 600; }
+input[type="email"], input[type="password"] {
+  font: inherit; width: 100%; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: #000; color: var(--text);
+}
