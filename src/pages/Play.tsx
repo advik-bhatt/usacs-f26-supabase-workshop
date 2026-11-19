@@ -121,7 +121,13 @@ function Game({ me, setMe }: { me: Me; setMe: (m: Me) => void }) {
   const [announcement, setAnnouncement] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
   const [muted, setMuted] = useState(jukebox.muted);
-  const [panel, setPanel] = useState<"none" | "account" | "cheats">("none");
+  const [panel, setPanel] = useState<"none" | "account" | "cheats" | "help">(() => {
+    try {
+      return localStorage.getItem("potluck-seen-help") ? "none" : "help";
+    } catch {
+      return "help";
+    }
+  });
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   // the menu and the store, once
@@ -251,6 +257,20 @@ function Game({ me, setMe }: { me: Me; setMe: (m: Me) => void }) {
 
       {announcement && <div className="banner">📣 {announcement}</div>}
 
+      {panel === "help" && (
+        <HowToPlay
+          allowance={allowance}
+          onClose={() => {
+            try {
+              localStorage.setItem("potluck-seen-help", "1");
+            } catch {
+              /* private mode: show it again next time, that's fine */
+            }
+            setPanel("none");
+          }}
+        />
+      )}
+
       {panel === "account" && (
         <Account
           me={{ id: me.id, name: me.name, avatar_path: me.avatar_path }}
@@ -316,12 +336,48 @@ function Game({ me, setMe }: { me: Me; setMe: (m: Me) => void }) {
       {screen === "results" && finished && <Results f={finished} onAgain={again} />}
 
       <footer className="foot">
+        <button className="link" onClick={() => setPanel(panel === "help" ? "none" : "help")}>How to play</button>
         <button className="link" onClick={() => setPanel(panel === "account" ? "none" : "account")}>Account</button>
         <button className="link" onClick={() => setPanel(panel === "cheats" ? "none" : "cheats")}>😈 try to cheat</button>
         <a href="#/live" className="link">live dashboard →</a>
       </footer>
       {panel === "cheats" && <Cheats me={me} run={run} />}
     </main>
+  );
+}
+
+function HowToPlay({ allowance, onClose }: { allowance: number; onClose: () => void }) {
+  return (
+    <section className="panel howto">
+      <h2>How to play</h2>
+      <ol>
+        <li>
+          <b>Pick your dishes.</b> You have {money(allowance)}. More ★ means more points, more ingredients to find and
+          trickier cooking. Big menu, big score.
+        </li>
+        <li>
+          <b>Go shopping.</b> Walk with the arrows (or the D-pad). Stand next to a glowing shelf and grab what's on your
+          list. Then walk onto the red mat by the door.
+        </li>
+        <li>
+          <b>Cook.</b> A marker slides across a bar. Tap when it's in the green. Dead center is <b>Super!</b>, then{" "}
+          <b>Great!</b>, <b>Good</b>, <b>OK</b>.
+        </li>
+        <li>
+          <b>Be quick.</b> The clock runs from the moment you start shopping. Beat the par time and you score up to
+          double.
+        </li>
+      </ol>
+      <p className="small">
+        <b>Your score</b> = each dish's points × how well you cooked it × how fast you were. Forget an ingredient and
+        that dish is skipped.
+      </p>
+      <p className="small">
+        <b>To win:</b> serve the highest-scoring dinner on the live dashboard. Everyone in the room is in the same
+        party, and every dinner adds to your XP and level.
+      </p>
+      <button className="pixel-btn go" onClick={onClose}>Got it!</button>
+    </section>
   );
 }
 

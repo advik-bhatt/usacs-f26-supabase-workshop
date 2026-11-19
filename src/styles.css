@@ -136,6 +136,12 @@ button.mute { font-size: 1rem; padding: 6px 10px; }
 .cheats .cheat button { justify-self: start; }
 .cheats code { font-size: 0.85em; overflow-wrap: anywhere; }
 
+/* ---------- how to play ---------- */
+
+.howto ol { margin: 0 0 10px; padding-left: 1.3em; display: grid; gap: 8px; }
+.howto b { color: var(--gold); font-weight: 400; }
+.howto button { width: calc(100% - 8px); }
+
 /* ---------- menu ---------- */
 
 .recipes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin: 12px 0; }
@@ -254,6 +260,21 @@ button.mute { font-size: 1rem; padding: 6px 10px; }
 .badge.closed { background: var(--cranberry); color: #fff; }
 .live-grid { display: grid; grid-template-columns: minmax(300px, 1fr) 1.4fr; gap: 14px; align-items: start; }
 .live-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+.live-grid.wide { grid-template-columns: 1.6fr 1fr; }
+.stack { display: grid; gap: 14px; }
+.rates { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+.rate { display: grid; background: var(--edge); padding: 6px; text-align: center; line-height: 1.1; }
+.rate b { font-family: var(--pixel); font-size: 0.75rem; }
+.rate span { font-family: var(--pixel); font-size: 0.38rem; margin-top: 4px; }
+.rate small { font-size: 0.7em; color: var(--muted); }
+.rate.broadcast b, .tag.broadcast { color: var(--blue); }
+.rate.changes b, .tag.changes { color: var(--green); }
+.rate.presence b, .tag.presence { color: var(--gold); }
+.rate.rpc b, .tag.rpc { color: var(--orange); }
+.wire { list-style: none; margin: 0; padding: 0; font-size: 0.85em; height: 330px; overflow: hidden; }
+.wire li { padding: 2px 0; border-top: 2px solid var(--edge); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: wire-in 0.4s steps(4); }
+.tag { font-family: var(--pixel); font-size: 0.38rem; background: var(--edge); padding: 2px 4px; }
+@keyframes wire-in { from { background: rgba(242, 193, 78, 0.25); } to { background: transparent; } }
 .mini-map { width: 100%; height: auto; box-shadow: 0 0 0 4px var(--edge); }
 .live table { width: 100%; border-collapse: collapse; }
 .live th { font-family: var(--pixel); font-size: 0.45rem; color: var(--muted); text-align: left; padding: 4px; }
@@ -264,14 +285,15 @@ button.mute { font-size: 1rem; padding: 6px 10px; }
 .live tr.phase-cooking td:nth-child(4) { color: var(--gold); }
 .live tr.phase-done td:nth-child(4) { color: var(--green); }
 .live tr.phase-away { opacity: 0.5; }
-.feed ul { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow: auto; }
+.feed ul { list-style: none; margin: 0; padding: 0; max-height: 400px; overflow: auto; }
 .feed li { padding: 3px 0; border-top: 2px solid var(--edge); }
 .feed time { color: var(--muted); font-size: 0.8em; margin-right: 4px; }
 .feed li.finished { color: var(--gold); }
 .feed li.blocked, .feed li.too_fast { color: #ffb08a; }
 
 @media (max-width: 900px) {
-  .live-grid, .live-grid.three { grid-template-columns: 1fr; }
+  .live-grid, .live-grid.three, .live-grid.wide { grid-template-columns: 1fr; }
+  .rates { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 520px) {
   body { font-size: 20px; }
