@@ -211,14 +211,14 @@ isOneToOne: false
                   ]
                 },"traders": {
                   Row: {
-                    "id": string,"joined_at": string,"kind": string,"name": string
+                    "avatar_path": string | null,"id": string,"joined_at": string,"kind": string,"name": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "id"?: string,"joined_at"?: string,"kind"?: string,"name": string
+                    "avatar_path"?: string | null,"id"?: string,"joined_at"?: string,"kind"?: string,"name": string
                   }
                   Update: {
-                    "id"?: string,"joined_at"?: string,"kind"?: string,"name"?: string
+                    "avatar_path"?: string | null,"id"?: string,"joined_at"?: string,"kind"?: string,"name"?: string
                   }
                   Relationships: [
                     
