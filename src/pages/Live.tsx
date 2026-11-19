@@ -6,9 +6,14 @@ import { jukebox } from "../game/music";
 import { Avatar } from "../components/Avatar";
 
 // The big screen: where everyone is in the store, live, and how they're doing.
-// Two kinds of live data, on purpose:
-//   positions  Realtime Broadcast, ~8 times a second, never stored
-//   everything else  dashboard(), one SQL function, polled every 1.5 seconds
+// It's driven by three Realtime features on one channel, and the "Under the
+// hood" panel shows every message as it arrives so the room can watch Supabase
+// work:
+//   Broadcast         positions in the store, ~8 a second per shopper, never stored
+//   Postgres Changes  a row changed (an event logged, someone moved aisles, the
+//                     store opened), so re-run dashboard() for fresh numbers
+//   Presence          who has the game open right now
+// dashboard() also runs every 5 seconds as a safety net in case a message is missed.
 
 type Player = {
   id: string; name: string; sprite: number; kind: string; xp: number; level: number; avatar_path: string | null;
@@ -23,6 +28,14 @@ type Board = {
   blocked: { attack: string; code: string; n: number }[];
 };
 type Pos = Record<string, { name: string; sprite: number; x: number; y: number; f: number; seen: number }>;
+
+type Wire = { id: number; at: number; kind: "broadcast" | "changes" | "presence" | "rpc"; what: string; detail: string };
+const WIRE_LABEL: Record<Wire["kind"], string> = {
+  broadcast: "Broadcast",
+  changes: "Postgres Changes",
+  presence: "Presence",
+  rpc: "RPC",
+};
 
 const T = 16;
 const money = (c: number | null) => (c == null ? "-" : `$${(c / 100).toFixed(2)}`);
@@ -49,17 +62,48 @@ export function Live() {
   const [announcement, setAnnouncement] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [music, setMusic] = useState(false);
+  const [wire, setWire] = useState<Wire[]>([]);
+  const [online, setOnline] = useState(0);
+  const counts = useRef<{ kind: Wire["kind"]; at: number }[]>([]);
   const canvas = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     let stop = false;
     let channel: ReturnType<typeof supabase.channel> | null = null;
-    const poll = async () => {
+    let seq = 0;
+    let lastPosShown = 0;
+
+    // every message counts toward the per-second numbers; the list shows a sample
+    // of positions (there are a lot) and everything else
+    const log = (kind: Wire["kind"], what: string, detail: string) => {
+      const at = Date.now();
+      counts.current.push({ kind, at });
+      if (counts.current.length > 2000) counts.current = counts.current.filter((c) => at - c.at < 10_000);
+      if (kind === "broadcast" && what === "pos") {
+        if (at - lastPosShown < 700) return;
+        lastPosShown = at;
+      }
+      setWire((w) => [{ id: ++seq, at, kind, what, detail }, ...w].slice(0, 14));
+    };
+
+    const poll = async (why: string) => {
+      const t0 = performance.now();
       const { data, error } = await supabase.rpc("dashboard");
       if (stop) return;
-      if (error) setError(error.message);
-      else setBoard(data as unknown as Board);
+      if (error) return setError(error.message);
+      setBoard(data as unknown as Board);
+      log("rpc", "dashboard()", `${why}, ${Math.round(performance.now() - t0)} ms`);
     };
+    // a burst of changes (a bot buying five things) becomes one refresh
+    let pending: number | null = null;
+    const refresh = () => {
+      if (pending) return;
+      pending = window.setTimeout(() => {
+        pending = null;
+        poll("a row changed");
+      }, 400);
+    };
+
     (async () => {
       try {
         await ensureSession();
@@ -67,23 +111,47 @@ export function Live() {
         setError(`Couldn't sign in: ${e instanceof Error ? e.message : e}`);
         return;
       }
-      await poll();
+      await poll("first load");
       if (stop) return;
       channel = supabase
         .channel("potluck")
-        .on("broadcast", { event: "pos" }, ({ payload }) => setPos((p) => ({ ...p, [payload.id]: { ...payload, seen: Date.now() } })))
+        .on("broadcast", { event: "pos" }, ({ payload }) => {
+          setPos((p) => ({ ...p, [payload.id]: { ...payload, seen: Date.now() } }));
+          log("broadcast", "pos", `${payload.name} at (${payload.x}, ${payload.y})`);
+        })
         .on("broadcast", { event: "announce" }, ({ payload }) => {
           setAnnouncement(payload.text);
           setTimeout(() => setAnnouncement(null), 9000);
+          log("broadcast", "announce", payload.text);
+        })
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "events" }, ({ new: e }) => {
+          log("changes", "INSERT events", String((e as { kind: string }).kind));
+          refresh();
+        })
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "player_state" }, ({ new: s }) => {
+          const st = s as { phase: string; location: string };
+          log("changes", "UPDATE player_state", `${st.phase} · ${st.location}`);
+          refresh();
+        })
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "game" }, ({ new: g }) => {
+          const game = g as { open: boolean; allowance_cents: number };
+          log("changes", "UPDATE game", `open = ${game.open}, allowance = ${money(game.allowance_cents)}`);
+          refresh();
+        })
+        .on("presence", { event: "sync" }, () => {
+          const n = Object.keys(channel!.presenceState()).length;
+          setOnline(n);
+          log("presence", "sync", `${n} with the game open`);
         })
         .subscribe();
     })();
-    const t1 = setInterval(poll, 1500);
+    const t1 = setInterval(() => poll("every 5 s, just in case"), 5000);
     const t2 = setInterval(() => setNow(Date.now()), 500);
     return () => {
       stop = true;
       clearInterval(t1);
       clearInterval(t2);
+      if (pending) clearTimeout(pending);
       if (channel) supabase.removeChannel(channel);
     };
   }, []);
@@ -125,6 +193,8 @@ export function Live() {
     return end ? Math.max(0, Math.round((end - new Date(p.started_at).getTime()) / 1000)) : null;
   };
 
+  const perSec = (kind: Wire["kind"]) => counts.current.filter((c) => c.kind === kind && now - c.at < 5000).length / 5;
+
   return (
     <main className="live">
       {announcement && <div className="banner big">📣 {announcement}</div>}
@@ -145,12 +215,41 @@ export function Live() {
         </div>
       </header>
 
-      <section className="live-grid">
+      <section className="live-grid three">
         <div className="panel">
           <h2>In the store right now</h2>
           <canvas ref={canvas} width={W * T} height={H * T} className="mini-map" />
         </div>
+        <div className="panel hood">
+          <h2>Under the hood</h2>
+          <div className="rates">
+            <div className="rate broadcast"><b>{perSec("broadcast").toFixed(1)}/s</b><span>Broadcast</span><small>where everyone is walking</small></div>
+            <div className="rate changes"><b>{perSec("changes").toFixed(1)}/s</b><span>Postgres Changes</span><small>rows changing in the database</small></div>
+            <div className="rate presence"><b>{online}</b><span>Presence</span><small>phones with the game open</small></div>
+            <div className="rate rpc"><b>{perSec("rpc").toFixed(1)}/s</b><span>RPC</span><small>dashboard() re-runs</small></div>
+          </div>
+          <ul className="wire">
+            {wire.map((w) => (
+              <li key={w.id}>
+                <span className={`tag ${w.kind}`}>{WIRE_LABEL[w.kind]}</span> <b>{w.what}</b> <span className="muted">{w.detail}</span>
+              </li>
+            ))}
+          </ul>
+          {wire.length === 0 && <p className="muted small">Waiting for the first message…</p>}
+        </div>
+        <div className="panel feed">
+          <h2>What's cooking</h2>
+          <ul>
+            {board.feed.map((e) => (
+              <li key={e.id} className={e.kind}>
+                <time>{new Date(e.at).toLocaleTimeString()}</time> {say(e)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
 
+      <section className="live-grid wide">
         <div className="panel players">
           <h2>Everyone ({board.players.length})</h2>
           <table>
@@ -174,9 +273,7 @@ export function Live() {
           </table>
           {board.players.length === 0 && <p className="muted small">Nobody here yet. Scan the code and pick a cook!</p>}
         </div>
-      </section>
-
-      <section className="live-grid three">
+        <div className="stack">
         <div className="panel">
           <h2>Best dinners</h2>
           <table>
@@ -192,16 +289,6 @@ export function Live() {
             </tbody>
           </table>
           {board.leaderboard.length === 0 && <p className="muted small">First dinner gets served soon…</p>}
-        </div>
-        <div className="panel feed">
-          <h2>What's cooking</h2>
-          <ul>
-            {board.feed.map((e) => (
-              <li key={e.id} className={e.kind}>
-                <time>{new Date(e.at).toLocaleTimeString()}</time> {say(e)}
-              </li>
-            ))}
-          </ul>
         </div>
         <div className="panel">
           <h2>Blocked by Postgres</h2>
@@ -220,6 +307,7 @@ export function Live() {
           <code className="block">npx supabase db query "update game set open = true"</code>
           <code className="block">npx supabase db query "update game set allowance_cents = 6000"</code>
           <code className="block">npx supabase db query "select announce('Pie is worth a lot tonight!')"</code>
+        </div>
         </div>
       </section>
     </main>
