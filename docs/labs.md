@@ -81,7 +81,7 @@ Walk around the store on your phone. Then:
 npx supabase db query "select p.name, s.phase, s.location from player_state s join players p on p.id = s.player_id"
 ```
 
-The database knows which aisle you're in, not which tile. Your exact position goes out several times a second on Realtime **Broadcast**, straight from your phone to everyone else's, and is never written anywhere. Rule of thumb: if it changes many times a second and you won't need it tomorrow, broadcast it; if it matters later, store it.
+The database knows which aisle you're in, not which tile. On the dashboard's **Under the hood** panel, the **Broadcast** counter is your steps per second, and only the aisle changes show up as **Postgres Changes** (`UPDATE player_state`). Your exact position goes out several times a second on Realtime **Broadcast**, straight from your phone to everyone else's, and is never written anywhere. Rule of thumb: if it changes many times a second and you won't need it tomorrow, broadcast it; if it matters later, store it.
 
 ## 7. The cron job that keeps the store tidy
 
@@ -209,7 +209,7 @@ npx supabase inspect db outliers
 npx supabase db query "select calls, round(mean_exec_time::numeric, 2) as avg_ms, left(query, 80) as query from extensions.pg_stat_statements where query ~* 'start_run|buy|finish_run|dashboard' order by calls desc"
 ```
 
-`dashboard()` is called by every open dashboard every 1.5 seconds, so it usually has the most calls.
+`dashboard()` runs whenever a dashboard hears a row change (several changes within 400 ms become one call), plus once every 5 seconds as a safety net, so it usually has the most calls. The **RPC** counter in the dashboard's Under the hood panel is the same number, live.
 
 ## 15. Is the big menu worth it?
 

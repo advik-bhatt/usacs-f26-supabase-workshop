@@ -41,8 +41,8 @@ A rough order. Every command is something the room can watch happen.
 | --- | --- | --- |
 | 0 | "Scan the QR, make an account or play as a guest, pick a cook. Then pick what you're bringing to dinner." | (nothing, let them join) |
 | 2 | "You've got $40. Big dishes are worth a lot more and they're harder. The store's closed. Let's open it." | `npx supabase db query --remote "update game set open = true"` |
-| 3 | "Every phone just heard that. Nobody refreshed." | point at the buttons lighting up |
-| 6 | "Look at the store. You're seeing each other walk, live. None of those positions are saved anywhere." | point at the map, explain Broadcast vs. a table |
+| 3 | "Every phone just heard that. Nobody refreshed." | point at the buttons lighting up, then `UPDATE game` in **Under the hood** |
+| 6 | "Look at the store. You're seeing each other walk, live. None of those positions are saved anywhere." | point at the map and the **Broadcast** counter: steps per second, never stored. Then at **Postgres Changes**: only the aisle changes hit the database |
 | 9 | "Someone's about to finish. Score is base points, times how well you cooked, times how fast." | point at the leaderboard |
 | 11 | "Feeling rich?" | `... "update game set allowance_cents = 6000"` |
 | 13 | "Some of you are trying to cheat. Let's see how that's going." | point at **Blocked by Postgres** |
@@ -68,5 +68,5 @@ The dump is everyone's dinners, with every tap's accuracy and every trip's timin
 - **Nobody can join.** Anonymous sign-ins are off on the hosted project. Run `npx supabase config push`, or turn them on under Authentication → Sign In / Providers.
 - **"Let's go shopping!" stays grey.** The store is closed (`select open from game`), or the menu costs more than the allowance (the bar turns red).
 - **Nobody shows up walking on the map.** Positions go over Realtime Broadcast on the `potluck` channel. A refresh on the dashboard reconnects it. The free plan allows 200 Realtime connections; a big room plus bots can get close.
-- **The dashboard is frozen.** It polls `dashboard()` every 1.5 seconds, so a refresh fixes it.
+- **The dashboard is frozen.** It refreshes when Realtime tells it a row changed, and every 5 seconds regardless. If the Under the hood counters sit at zero while people are playing, Realtime has dropped; a refresh reconnects it.
 - **No music.** Browsers only play sound after a tap. Tap anything once.

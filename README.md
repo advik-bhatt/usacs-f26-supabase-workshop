@@ -4,7 +4,9 @@ A retro Friendsgiving cooking race that runs on Supabase. Built for the USACS Su
 
 Everyone in the room joins from their phone, makes an account and picks a pixel cook. You get an allowance, choose what you're bringing to dinner, walk the grocery store aisle by aisle grabbing ingredients, then head home and cook each dish with a few well-timed taps. The clock runs the whole time. The game is never mean about it: every tap and every dinner is graded **Super!**, **Great!**, **Good** or **OK**, and the worst you can get is OK.
 
-The projector shows the live dashboard: everyone walking the store in real time, who's shopping or cooking or done, how long they've been at it, their level, what they spent, their score, the best dinners of the night, and everyone who just tried to cheat and got stopped by Postgres.
+The projector shows the live dashboard: everyone walking the store in real time, who's shopping or cooking or done, how long they've been at it, their level, what they spent, their score, the best dinners of the night, and everyone who just tried to cheat and got stopped by Postgres. Its **Under the hood** panel shows Supabase working as it happens: every Realtime message as it arrives, labelled Broadcast, Postgres Changes, Presence or RPC, with a live count per second of each.
+
+On the phone, a **How to play** card explains the rules and how scoring works the first time you play, and stays one tap away in the footer after that.
 
 There's a little lo-fi jazz band in the browser too. The menu is a slow lounge tune, the store swings, the kitchen picks up the tempo, and the results screen celebrates. Every note is generated with the Web Audio API, so there are no audio files and nothing to license. 🎷 mutes it.
 
@@ -21,11 +23,22 @@ Every part of it is a Supabase feature doing its actual job, and you drive the w
 | The cheat menu failing in different ways | grants vs. RLS policies vs. a server that checks |
 | Other cooks walking the aisles on your screen | Realtime Broadcast (positions are never stored) |
 | "The store is open!" reaching every phone at once | Realtime Postgres Changes on the `game` table |
+| The dashboard updating the moment anything happens | Realtime Postgres Changes on `events` and `player_state`, which re-run `dashboard()` |
+| "Phones with the game open" | Realtime Presence |
 | The host announcing "Pie is worth a lot tonight" from a terminal | `realtime.send()` called from SQL |
 | People who wander off showing as "away" | `pg_cron` running `tidy_up()` every minute |
 | Robot dinner guests | a Node script using the same publishable key as everyone else |
 
 Everything here runs on the free tier, and all of it runs on your laptop with the CLI.
+
+## How to play and how to win
+
+Everyone who opens the game on the same Supabase project is in the same party: one store, one dashboard, one leaderboard. The goal is the highest-scoring dinner on the dashboard.
+
+1. **Pick your dishes** with your allowance.
+2. **Go shopping**: walk the aisles and grab everything on your list, then walk onto the red mat by the door.
+3. **Cook**: for each step a marker slides across a bar. Tap when it's in the green; dead center is Super!
+4. **Be quick**: the clock runs from the moment you start shopping until your last dish is plated.
 
 ## How scoring works
 
