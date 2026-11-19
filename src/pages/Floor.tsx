@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase, ensureSession, usd, pct, isHalted, type Book, type Market, type Stock, type FloorEvent } from "../lib/supabase";
 import { BookView, MarketChart, Sparkline, COLORS } from "../components/Charts";
+import { Avatar } from "../components/Avatar";
 
 // The big screen: every price, the book, the tape, the leaderboard, live.
 
@@ -22,7 +23,9 @@ export function Floor() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [focus, setFocus] = useState("SLICE");
   const [book, setBook] = useState<Book | null>(null);
-  const [online, setOnline] = useState<{ name: string; kind: string }[]>([]);
+  const [online, setOnline] = useState<{ name: string; kind: string; avatar_path?: string | null }[]>([]);
+  // the leaderboard comes back with names only, so look pictures up by name
+  const [pictures, setPictures] = useState<Record<string, string | null>>({});
   const [headline, setHeadline] = useState<{ headline: string; mood: string; symbol: string | null } | null>(null);
   const [alerts, setAlerts] = useState<FloorEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +46,9 @@ export function Floor() {
       if (error) return setError(error.message);
       setError(null);
       setStats(data as unknown as Stats);
+      supabase.from("traders").select("name, avatar_path").then(({ data: t }) => {
+        if (!stop && t) setPictures(Object.fromEntries(t.map((x) => [x.name, x.avatar_path])));
+      });
       setBook(b as unknown as Book);
       setNow(Date.now());
     }
@@ -71,7 +77,7 @@ export function Floor() {
           setTimeout(() => setHeadline(null), 12000);
         })
         .on("presence", { event: "sync" }, () => {
-          const state = channel!.presenceState<{ name: string; kind: string }>();
+          const state = channel!.presenceState<{ name: string; kind: string; avatar_path?: string | null }>();
           setOnline(Object.values(state).map((metas) => metas[0]));
         })
         .subscribe();
@@ -180,7 +186,7 @@ export function Floor() {
             <tbody>
               {stats.leaderboard.map((l, i) => (
                 <tr key={l.name + i}>
-                  <td>{l.kind === "bot" ? "🤖 " : ""}{l.name}</td>
+                  <td><Avatar name={l.name} path={pictures[l.name]} size={20} /> {l.kind === "bot" ? "🤖 " : ""}{l.name}</td>
                   <td>{usd(l.net_cents)}</td>
                   <td className={l.return_pct >= 0 ? "good" : "bad"}>{l.return_pct >= 0 ? "+" : ""}{l.return_pct}%</td>
                 </tr>

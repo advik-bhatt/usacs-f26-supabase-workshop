@@ -15,6 +15,10 @@ import {
 } from "../lib/supabase";
 import { BookView, Sparkline } from "../components/Charts";
 import { Cheats } from "../components/Cheats";
+import { AuthGate, NewPassword } from "../components/AuthGate";
+import { Account } from "../components/Account";
+import { Avatar } from "../components/Avatar";
+import type { Session } from "@supabase/supabase-js";
 import { Intro, SimpleBoard, type Quotes } from "../components/Simple";
 
 // Small conveniences remembered per device. Storage can be blocked (private
@@ -39,24 +43,43 @@ const remember = {
 type Note = { tone: "good" | "bad" | "info"; text: string };
 
 export function TraderApp() {
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [me, setMe] = useState<Trader | null>(null);
-  const [checking, setChecking] = useState(true);
+  const [loadingMe, setLoadingMe] = useState(true);
+  const [recovering, setRecovering] = useState(false);
 
-  // Already on the floor on this device? Skip the name screen.
+  // Follow the session: sign-in, sign-out, magic links and reset links all
+  // land here. Keep this callback to setState only; calling Supabase from
+  // inside it can deadlock the auth client.
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        const { data: t } = await supabase.from("traders").select("*").eq("id", data.session.user.id).maybeSingle();
-        setMe(t);
-      }
-      setChecking(false);
-    })();
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === "PASSWORD_RECOVERY") setRecovering(true);
+      setSession(s);
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
 
-  if (checking) return <div className="center muted">Connecting…</div>;
+  // Signed in? Then find your player row (or pick a name to make one).
+  const uid = session?.user.id;
+  useEffect(() => {
+    if (!uid) {
+      setMe(null);
+      setLoadingMe(false);
+      return;
+    }
+    setLoadingMe(true);
+    supabase.from("traders").select("*").eq("id", uid).maybeSingle().then(({ data }) => {
+      setMe(data);
+      setLoadingMe(false);
+    });
+  }, [uid]);
+
+  if (session === undefined || (uid && loadingMe)) return <div className="center muted">Connecting…</div>;
+  if (recovering) return <NewPassword onDone={() => setRecovering(false)} />;
+  if (!session) return <AuthGate title="📈 Trading Floor" blurb="You get $10,000 and 20 shares of five made-up companies. Prices only move when somebody trades. Everyone here is the market." />;
   if (!me) return <Join onDone={setMe} />;
-  return <Desk me={me} onLeave={() => setMe(null)} />;
+  return <Desk me={me} onMe={setMe} onLeave={() => setMe(null)} />;
 }
 
 function Join({ onDone }: { onDone: (t: Trader) => void }) {
@@ -97,13 +120,14 @@ function Join({ onDone }: { onDone: (t: Trader) => void }) {
       </form>
       {error && <p className="bad">{error}</p>}
       <p className="small muted">
-        You'll be signed in as a guest (<code>signInAnonymously()</code>). No email needed.
+        This is the name everyone sees on the big screen. You can change it, and add a picture, any time.
       </p>
     </main>
   );
 }
 
-function Desk({ me, onLeave }: { me: Trader; onLeave: () => void }) {
+function Desk({ me, onMe, onLeave }: { me: Trader; onMe: (m: Trader) => void; onLeave: () => void }) {
+  const [showAccount, setShowAccount] = useState(false);
   const [market, setMarket] = useState<Market | null>(null);
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [samples, setSamples] = useState<Record<string, number[]>>({});
@@ -187,7 +211,7 @@ function Desk({ me, onLeave }: { me: Trader; onLeave: () => void }) {
       })
       .on("presence", { event: "sync" }, () => setOnline(Object.keys(channel.presenceState()).length))
       .subscribe((status) => {
-        if (status === "SUBSCRIBED") channel.track({ name: me.name, kind: me.kind });
+        if (status === "SUBSCRIBED") channel.track({ name: me.name, kind: me.kind, avatar_path: me.avatar_path });
       });
     channelRef.current = channel;
 
@@ -328,13 +352,32 @@ function Desk({ me, onLeave }: { me: Trader; onLeave: () => void }) {
     <main className="desk">
       <header>
         <div>
-          <strong>{me.name}</strong>
+          <button className="me" onClick={() => setShowAccount((v) => !v)} title="Your account">
+            <Avatar name={me.name} path={me.avatar_path} size={26} /> <strong>{me.name}</strong>
+          </button>
           <span className="muted"> · {online} on the floor</span>
         </div>
         <div className="stats">
           <span title="Only you can see this. RLS.">worth {usd(net)} 🔒</span>
         </div>
       </header>
+
+      {showAccount && (
+        <Account
+          me={me}
+          onRename={async (name) => {
+            const { data, error } = await supabase.from("traders").update({ name }).eq("id", me.id).select().single();
+            if (data) onMe(data);
+            return error?.message ?? null;
+          }}
+          onAvatar={async (avatar_path) => {
+            const { data, error } = await supabase.from("traders").update({ avatar_path }).eq("id", me.id).select().single();
+            if (data) onMe(data);
+            return error?.message ?? null;
+          }}
+          onSignedOut={onLeave}
+        />
+      )}
 
       <div className={`scoreline ${up >= 0 ? "good" : "bad"}`}>
         {Math.abs(up) < 1 ? "You're even so far." : `You're ${up > 0 ? "up" : "down"} ${usd(Math.abs(up))} since the opening bell.`}
@@ -488,6 +531,7 @@ function Desk({ me, onLeave }: { me: Trader; onLeave: () => void }) {
 
       <footer>
         <button className="link small" onClick={leave}>Leave</button>
+        <button className="link small" onClick={() => setShowAccount((v) => !v)}>Account</button>
         <a className="small muted" href="#/floor">The floor →</a>
       </footer>
     </main>
