@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase, ensureSession, type KitchenEvent, type Shift } from "../lib/supabase";
+import { Avatar } from "../components/Avatar";
 import { DepthChart, FlowChart, PriceChart, priceColor, type DepthPoint, type FlowPoint, type PricePoint } from "../components/Charts";
 
 const money = (cents: number | null | undefined) => (cents == null ? "-" : `$${(cents / 100).toFixed(2)}`);
@@ -51,7 +52,9 @@ export function Pass() {
   const [economy, setEconomy] = useState<Economy | null>(null);
   const [feed, setFeed] = useState<KitchenEvent[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
-  const [online, setOnline] = useState<{ name: string; kind: string }[]>([]);
+  // the leaderboard comes back with names only, so look pictures up by name
+  const [pictures, setPictures] = useState<Record<string, string | null>>({});
+  const [online, setOnline] = useState<{ name: string; kind: string; avatar_path?: string | null }[]>([]);
   const [shout, setShout] = useState<string | null>(null);
   const [cheers, setCheers] = useState<Cheer[]>([]);
   const [trace, setTrace] = useState<number | null>(null);
@@ -65,8 +68,9 @@ export function Pass() {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     async function loadNames() {
-      const { data } = await supabase.from("cooks").select("id, name");
+      const { data } = await supabase.from("cooks").select("id, name, avatar_path");
       setNames(Object.fromEntries((data ?? []).map((c) => [c.id, c.name])));
+      setPictures(Object.fromEntries((data ?? []).map((c) => [c.name, c.avatar_path])));
     }
 
     async function poll() {
@@ -116,7 +120,7 @@ export function Pass() {
           setTimeout(() => setCheers((cs) => cs.filter((x) => x.id !== c.id)), 3000);
         })
         .on("presence", { event: "sync" }, () => {
-          const state = channel!.presenceState<{ name: string; kind: string }>();
+          const state = channel!.presenceState<{ name: string; kind: string; avatar_path?: string | null }>();
           setOnline(Object.values(state).map((metas) => metas[0]));
         })
         .subscribe();
@@ -239,7 +243,7 @@ export function Pass() {
             <tbody>
               {stats.leaderboard.map((l, i) => (
                 <tr key={l.name + i}>
-                  <td>{l.kind === "bot" ? "🤖 " : ""}{l.name}</td>
+                  <td><Avatar name={l.name} path={pictures[l.name]} size={20} /> {l.kind === "bot" ? "🤖 " : ""}{l.name}</td>
                   <td>{l.score}</td>
                   <td>{l.good}/{l.plates}</td>
                   <td>{l.avg_seconds}s</td>
@@ -305,7 +309,7 @@ export function Pass() {
           <h2>On shift</h2>
           <p className="small">
             {online.map((o, i) => (
-              <span key={i} className="pill">{o.kind === "bot" ? "🤖 " : ""}{o.name}</span>
+              <span key={i} className="pill"><Avatar name={o.name} path={o.avatar_path} size={18} /> {o.kind === "bot" ? "🤖 " : ""}{o.name}</span>
             ))}
           </p>
         </div>

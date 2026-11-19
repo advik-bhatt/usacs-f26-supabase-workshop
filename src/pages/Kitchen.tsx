@@ -3,34 +3,53 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase, ensureSession, type Cook, type Shift, type Ticket, type Topping } from "../lib/supabase";
 import { Cheats } from "../components/Cheats";
+import { AuthGate, NewPassword } from "../components/AuthGate";
+import { Account } from "../components/Account";
+import { Avatar } from "../components/Avatar";
+import type { Session } from "@supabase/supabase-js";
 
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
 type Note = { tone: "good" | "bad" | "info"; text: string };
 
 export function Kitchen() {
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [me, setMe] = useState<Cook | null>(null);
-  const [checking, setChecking] = useState(true);
+  const [loadingMe, setLoadingMe] = useState(true);
+  const [recovering, setRecovering] = useState(false);
 
-  // Already clocked in on this device? Then skip the name screen.
+  // Follow the session: sign-in, sign-out, magic links and reset links all
+  // land here. Keep this callback to setState only; calling Supabase from
+  // inside it can deadlock the auth client.
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        const { data: cook } = await supabase
-          .from("cooks")
-          .select("*")
-          .eq("id", data.session.user.id)
-          .maybeSingle();
-        setMe(cook);
-      }
-      setChecking(false);
-    })();
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === "PASSWORD_RECOVERY") setRecovering(true);
+      setSession(s);
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
 
-  if (checking) return <div className="center muted">Warming up the oven…</div>;
+  // Signed in? Then find your player row (or pick a name to make one).
+  const uid = session?.user.id;
+  useEffect(() => {
+    if (!uid) {
+      setMe(null);
+      setLoadingMe(false);
+      return;
+    }
+    setLoadingMe(true);
+    supabase.from("cooks").select("*").eq("id", uid).maybeSingle().then(({ data }) => {
+      setMe(data);
+      setLoadingMe(false);
+    });
+  }, [uid]);
+
+  if (session === undefined || (uid && loadingMe)) return <div className="center muted">Connecting…</div>;
+  if (recovering) return <NewPassword onDone={() => setRecovering(false)} />;
+  if (!session) return <AuthGate title="🍕 Dinner Rush" blurb="Orders are coming in. Grab a ticket, build the pizza, serve it before the timer runs out. Ingredients cost money." />;
   if (!me) return <ClockIn onDone={setMe} />;
-  return <Line me={me} onLeave={() => setMe(null)} />;
+  return <Line me={me} onMe={setMe} onLeave={() => setMe(null)} />;
 }
 
 function ClockIn({ onDone }: { onDone: (c: Cook) => void }) {
@@ -77,13 +96,14 @@ function ClockIn({ onDone }: { onDone: (c: Cook) => void }) {
       </form>
       {error && <p className="bad">{error}</p>}
       <p className="small muted">
-        You'll be signed in as a guest (<code>signInAnonymously()</code>). No email needed.
+        This is the name everyone sees on the big screen. You can change it, and add a picture, any time.
       </p>
     </main>
   );
 }
 
-function Line({ me, onLeave }: { me: Cook; onLeave: () => void }) {
+function Line({ me, onMe, onLeave }: { me: Cook; onMe: (m: Cook) => void; onLeave: () => void }) {
+  const [showAccount, setShowAccount] = useState(false);
   const [menu, setMenu] = useState<Topping[]>([]);
   const [shift, setShift] = useState<Shift | null>(null);
   const [ticket, setTicket] = useState<Ticket | null>(null);
@@ -141,7 +161,7 @@ function Line({ me, onLeave }: { me: Cook; onLeave: () => void }) {
         setOnline(Object.keys(channel.presenceState()).length);
       })
       .subscribe((status) => {
-        if (status === "SUBSCRIBED") channel.track({ name: me.name, kind: me.kind });
+        if (status === "SUBSCRIBED") channel.track({ name: me.name, kind: me.kind, avatar_path: me.avatar_path });
       });
     channelRef.current = channel;
 
@@ -233,7 +253,9 @@ function Line({ me, onLeave }: { me: Cook; onLeave: () => void }) {
     <main className="kitchen">
       <header>
         <div>
-          <strong>{me.name}</strong>
+          <button className="me" onClick={() => setShowAccount((v) => !v)} title="Your account">
+            <Avatar name={me.name} path={me.avatar_path} size={26} /> <strong>{me.name}</strong>
+          </button>
           <span className="muted"> · {online} on shift</span>
         </div>
         <div className="stats">
@@ -242,6 +264,23 @@ function Line({ me, onLeave }: { me: Cook; onLeave: () => void }) {
           <span title="Only you can see this. RLS." className={mine.cash < 400 ? "bad" : ""}>{money(mine.cash)} cash 🔒</span>
         </div>
       </header>
+
+      {showAccount && (
+        <Account
+          me={me}
+          onRename={async (name) => {
+            const { data, error } = await supabase.from("cooks").update({ name }).eq("id", me.id).select().single();
+            if (data) onMe(data);
+            return error?.message ?? null;
+          }}
+          onAvatar={async (avatar_path) => {
+            const { data, error } = await supabase.from("cooks").update({ avatar_path }).eq("id", me.id).select().single();
+            if (data) onMe(data);
+            return error?.message ?? null;
+          }}
+          onSignedOut={onLeave}
+        />
+      )}
 
       {shout && <div className="shout">📣 {shout}</div>}
       {shift && !shift.open && <div className="note info">Kitchen's closed. Waiting for the host to open it.</div>}
@@ -312,6 +351,7 @@ function Line({ me, onLeave }: { me: Cook; onLeave: () => void }) {
 
       <footer>
         <button className="link small" onClick={leave}>Clock out</button>
+        <button className="link small" onClick={() => setShowAccount((v) => !v)}>Account</button>
         <a className="small muted" href="#/pass">Pass screen →</a>
       </footer>
     </main>
